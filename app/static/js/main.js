@@ -25,6 +25,9 @@ async function uploadFile(event) {
     });
     const data = await res.json();
     alert("Uploaded: " + data.filename);
+
+    // repopulate dropdown after upload
+    await populateFileDropdown();
   } finally {
     hideSpinner();
   }
@@ -47,7 +50,14 @@ async function processFile() {
 }
 
 async function stressTest() {
-  const filename = document.getElementById("filename").value;
+  const filename = document.getElementById("stress-file").value;
+  const duration = parseInt(document.getElementById("duration").value, 10);
+
+  if (!filename) {
+    alert("Please select a file to run the stress test on.");
+    return;
+  }
+
   showSpinner();
   const res = await fetch("/process/stress", {
     method: "POST",
@@ -55,11 +65,44 @@ async function stressTest() {
       "Content-Type": "application/json",
       "Authorization": "Bearer " + getToken()
     },
-    body: JSON.stringify({ filename, duration: 10 })
+    body: JSON.stringify({ filename, duration })
   });
   const data = await res.json();
   hideSpinner();
-  alert("Stress Test Results: " + data.iterations + " iterations");
+
+  alert(`Stress Test Results: ${data.iterations} iterations on ${filename}`);
+}
+
+async function populateFileDropdown() {
+  const select = document.getElementById("stress-file");
+  if (!select) return;
+
+  try {
+    const res = await fetch("/upload/list", {
+      headers: { "Authorization": "Bearer " + getToken() }
+    });
+    const data = await res.json();
+
+    select.innerHTML = "";
+    if (!data.uploads || data.uploads.length === 0) {
+      const option = document.createElement("option");
+      option.disabled = true;
+      option.selected = true;
+      option.textContent = "No files available";
+      select.appendChild(option);
+      return;
+    }
+
+    data.uploads.forEach(file => {
+      const option = document.createElement("option");
+      option.value = file.filename;
+      const resolutionText = file.resolution ? ` (${file.resolution})` : "";
+      option.textContent = `${file.filename}${resolutionText}`;
+      select.appendChild(option);
+    });
+  } catch (err) {
+    console.error("Failed to load files:", err);
+  }
 }
 
 async function viewResults() {
@@ -130,9 +173,12 @@ async function login(event) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // If the dashboard elements exist but there's no token, bounce to login
   const onDashboard = document.getElementById("results") !== null;
   if (onDashboard && !getToken()) {
     window.location.href = "/login";
+  }
+
+  if (onDashboard) {
+    populateFileDropdown();
   }
 });

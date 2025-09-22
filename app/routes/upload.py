@@ -2,10 +2,11 @@ import os
 from flask import Blueprint, request, jsonify, current_app
 from werkzeug.utils import secure_filename
 from app.utils.auth import token_required
+import json
+from PIL import Image
 
 upload_bp = Blueprint("upload", __name__)
 
-# Allowed file types (you can adjust)
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 
 def allowed_file(filename):
@@ -39,3 +40,27 @@ def upload_file():
         }), 201
 
     return jsonify({"error": "Invalid file type"}), 400
+
+@upload_bp.route("/list", methods=["GET"])
+@token_required
+def list_uploads():
+    upload_folder = current_app.config["UPLOAD_FOLDER"]
+    os.makedirs(upload_folder, exist_ok=True)
+
+    files = []
+    for filename in os.listdir(upload_folder):
+        file_path = os.path.join(upload_folder, filename)
+        if os.path.isfile(file_path):
+            # Try to read resolution
+            try:
+                with Image.open(file_path) as img:
+                    resolution = f"{img.width}x{img.height}"
+            except Exception:
+                resolution = "Unknown"
+
+            files.append({
+                "filename": filename,
+                "resolution": resolution
+            })
+
+    return jsonify({"uploads": files})

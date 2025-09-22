@@ -5,8 +5,8 @@ import datetime
 auth_bp = Blueprint("auth", __name__)
 
 USERS = {
-    "alice": {"password": "password123", "role": "admin"},
-    "bob": {"password": "qutrocks", "role": "user"}
+    "admin": {"password": "admin", "role": "admin"},
+    "bailey": {"password": "qut", "role": "user"}
 }
 
 @auth_bp.route("/login", methods=["POST"])

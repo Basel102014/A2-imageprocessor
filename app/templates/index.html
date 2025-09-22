@@ -11,43 +11,52 @@
   </div>
 
   <hr class="divider">
-  
+
   <div class="card">
-    <h2>Upload Image</h2>
+    <div class="card-header">
+      <h2>Upload Image</h2>
+    </div>
     <form onsubmit="uploadFile(event)">
       <input id="file" type="file" required>
       <button type="submit">Upload</button>
     </form>
   </div>
 
-  <hr class="divider">
-
   <div class="card">
-    <h2>Process Image</h2>
+    <div class="card-header">
+      <h2>Process Image</h2>
+    </div>
     <label for="process-file">Select File</label>
     <select id="process-file"></select>
     <button onclick="processFile()">Process</button>
   </div>
 
-  <div id="admin-section">
-    <hr class="divider">
-
-    <div class="card">
+  <div class="card" id="stress-card">
+    <div class="card-header">
       <h2>Stress Test (Admin Only)</h2>
-
-      <label for="stress-file">Select File</label>
-      <select id="stress-file"></select>
-
-      <label for="duration">Duration (seconds)</label>
-      <input id="duration" type="number" value="10" min="1">
-
-      <button onclick="stressTest()">Run Stress Test</button>
     </div>
-  </div>
-  <hr class="divider">
+    <label for="stress-file">Select File</label>
+    <select id="stress-file"></select>
 
-  <div class="card">
-    <h2>Results</h2>
+    <label for="duration">Duration (seconds)</label>
+    <input id="duration" type="number" value="10" min="1">
+
+    <button onclick="stressTest()">Run Stress Test</button>
+  </div>
+
+  <div class="card results-card">
+    <div class="results-header">
+      <h2>Results</h2>
+      <div class="results-actions">
+        <button class="danger-btn" onclick="clearData()">🗑 Delete All Data</button>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <input id="filter-input" type="text" placeholder="Search by filename or user">
+      <button class="filter-btn" onclick="applyFilter()">Filter</button>
+    </div>
+
     <div id="results-container">
       <div id="results"></div>
       <div id="pagination" class="pagination"></div>

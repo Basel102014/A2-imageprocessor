@@ -1,11 +1,9 @@
 function showSpinner() {
   document.getElementById("spinner").style.display = "flex";
 }
-
 function hideSpinner() {
   document.getElementById("spinner").style.display = "none";
 }
-
 function getToken() {
   return localStorage.getItem("token");
 }
@@ -25,8 +23,6 @@ async function uploadFile(event) {
     });
     const data = await res.json();
     alert("Uploaded: " + data.filename);
-
-    // repopulate dropdown after upload
     await populateFileDropdown();
   } finally {
     hideSpinner();
@@ -35,11 +31,7 @@ async function uploadFile(event) {
 
 async function processFile() {
   const filename = document.getElementById("process-file").value;
-
-  if (!filename) {
-    alert("Please select a file to process.");
-    return;
-  }
+  if (!filename) return alert("Please select a file to process.");
 
   showSpinner();
   const res = await fetch("/process/", {
@@ -53,16 +45,15 @@ async function processFile() {
   const data = await res.json();
   hideSpinner();
   alert("Processed: " + data.result);
+
+  // Refresh results table with current pagination/sort/filter
+  await viewResults(currentPage, sortColumn, sortDirection, currentFilter);
 }
 
 async function stressTest() {
   const filename = document.getElementById("stress-file").value;
   const duration = parseInt(document.getElementById("duration").value, 10);
-
-  if (!filename) {
-    alert("Please select a file to run the stress test on.");
-    return;
-  }
+  if (!filename) return alert("Please select a file to run the stress test on.");
 
   showSpinner();
   const res = await fetch("/process/stress", {
@@ -75,8 +66,10 @@ async function stressTest() {
   });
   const data = await res.json();
   hideSpinner();
-
   alert(`Stress Test Results: ${data.iterations} iterations on ${filename}`);
+
+  // Refresh results table with current pagination/sort/filter
+  await viewResults(currentPage, sortColumn, sortDirection, currentFilter);
 }
 
 async function populateFileDropdown() {
@@ -89,79 +82,73 @@ async function populateFileDropdown() {
     });
     const data = await res.json();
 
-    // Clear both
-    if (stressSelect) stressSelect.innerHTML = "";
-    if (processSelect) processSelect.innerHTML = "";
+    [stressSelect, processSelect].forEach(select => {
+      if (!select) return;
+      select.innerHTML = "";
 
-    if (!data.uploads || data.uploads.length === 0) {
-      const option = document.createElement("option");
-      option.disabled = true;
-      option.selected = true;
-      option.textContent = "No files available";
+      if (!data.uploads || data.uploads.length === 0) {
+        const option = new Option("No files available", "", true, true);
+        option.disabled = true;
+        select.appendChild(option);
+        return;
+      }
 
-      if (stressSelect) stressSelect.appendChild(option.cloneNode(true));
-      if (processSelect) processSelect.appendChild(option.cloneNode(true));
-      return;
-    }
-
-    data.uploads.forEach(file => {
-      const option = document.createElement("option");
-      option.value = file.filename;
-      const resolutionText = file.resolution ? ` (${file.resolution})` : "";
-      option.textContent = `${file.filename}${resolutionText}`;
-
-      if (stressSelect) stressSelect.appendChild(option.cloneNode(true));
-      if (processSelect) processSelect.appendChild(option.cloneNode(true));
+      data.uploads.forEach(file => {
+        const resolutionText = file.resolution ? ` (${file.resolution})` : "";
+        select.appendChild(new Option(`${file.filename}${resolutionText}`, file.filename));
+      });
     });
   } catch (err) {
     console.error("Failed to load files:", err);
   }
 }
 
-let allResults = [];
+// ---------------- Results table ----------------
 let currentPage = 1;
 const resultsPerPage = 5;
 let sortColumn = "timestamp";
-let sortDirection = "asc";
+let sortDirection = "desc";
+let totalPages = 1;
+let currentFilter = "";
 
-async function viewResults() {
+async function viewResults(page = 1, sort = sortColumn, order = sortDirection, filter = currentFilter) {
   showSpinner();
-  const res = await fetch("/results/metadata", {
+  let url = `/results/metadata?page=${page}&limit=${resultsPerPage}&sort=${sort}&order=${order}`;
+  if (filter) {
+    url += `&input=${encodeURIComponent(filter)}`;
+  }
+
+  const res = await fetch(url, {
     headers: { "Authorization": "Bearer " + getToken() }
   });
   const data = await res.json();
   hideSpinner();
 
-  allResults = data.metadata || [];
+  currentPage = data.page;
+  totalPages = Math.ceil(data.total / resultsPerPage);
 
-  sortResults("timestamp");
-
-  currentPage = 1;
+  renderResultsPage(data.results);
 }
 
-function renderResultsPage() {
+function renderResultsPage(results) {
   const resultsDiv = document.getElementById("results");
   const paginationDiv = document.getElementById("pagination");
 
-  const start = (currentPage - 1) * resultsPerPage;
-  const end = start + resultsPerPage;
-  const pageResults = allResults.slice(start, end);
-
-    let html = `
+  let html = `
     <table class="results-table">
-        <thead>
+      <thead>
         <tr>
-            <th onclick="sortResults('user')">User${getSortIndicator("user")}</th>
-            <th onclick="sortResults('input')">Input${getSortIndicator("input")}</th>
-            <th onclick="sortResults('output')">Output${getSortIndicator("output")}</th>
-            <th onclick="sortResults('timestamp')">Time${getSortIndicator("timestamp")}</th>
-            <th>Preview</th>
+          <th onclick="changeSort('user')">User${getSortIndicator("user")}</th>
+          <th onclick="changeSort('input')">Input${getSortIndicator("input")}</th>
+          <th onclick="changeSort('output')">Output${getSortIndicator("output")}</th>
+          <th onclick="changeSort('timestamp')">Time${getSortIndicator("timestamp")}</th>
+          <th>Preview</th>
         </tr>
-        </thead>
-        <tbody>
-    `;
+      </thead>
+      <tbody>
+  `;
 
-  pageResults.forEach(r => {
+  results.forEach(r => {
     html += `
       <tr>
         <td>${r.user}</td>
@@ -179,69 +166,39 @@ function renderResultsPage() {
 
   html += "</tbody></table>";
   resultsDiv.innerHTML = html;
-	const totalPages = Math.ceil(allResults.length / resultsPerPage);
-	paginationDiv.innerHTML = "";
 
-	if (totalPages > 1) {
-	const prevBtn = document.createElement("button");
-	prevBtn.textContent = "Prev";
-	prevBtn.disabled = currentPage === 1;
-	prevBtn.onclick = () => {
-			if (currentPage > 1) {
-			currentPage--;
-			renderResultsPage();
-			}
-	};
-	paginationDiv.appendChild(prevBtn);
+  paginationDiv.innerHTML = "";
+  if (totalPages > 1) {
+    const prevBtn = document.createElement("button");
+    prevBtn.textContent = "Prev";
+    prevBtn.disabled = currentPage === 1;
+    prevBtn.onclick = () => viewResults(currentPage - 1);
+    paginationDiv.appendChild(prevBtn);
 
-	for (let i = 1; i <= totalPages; i++) {
-			const btn = document.createElement("button");
-			btn.textContent = i;
-			if (i === currentPage) btn.classList.add("active");
-			btn.onclick = () => {
-			currentPage = i;
-			renderResultsPage();
-			};
-			paginationDiv.appendChild(btn);
-	}
+    for (let i = 1; i <= totalPages; i++) {
+      const btn = document.createElement("button");
+      btn.textContent = i;
+      if (i === currentPage) btn.classList.add("active");
+      btn.onclick = () => viewResults(i);
+      paginationDiv.appendChild(btn);
+    }
 
-	const nextBtn = document.createElement("button");
-	nextBtn.textContent = "Next";
-	nextBtn.disabled = currentPage === totalPages;
-	nextBtn.onclick = () => {
-			if (currentPage < totalPages) {
-			currentPage++;
-			renderResultsPage();
-			}
-	};
-	paginationDiv.appendChild(nextBtn);
-	}
+    const nextBtn = document.createElement("button");
+    nextBtn.textContent = "Next";
+    nextBtn.disabled = currentPage === totalPages;
+    nextBtn.onclick = () => viewResults(currentPage + 1);
+    paginationDiv.appendChild(nextBtn);
+  }
 }
 
-function sortResults(column) {
+function changeSort(column) {
   if (sortColumn === column) {
     sortDirection = sortDirection === "asc" ? "desc" : "asc";
   } else {
     sortColumn = column;
     sortDirection = "asc";
   }
-
-  allResults.sort((a, b) => {
-    let valA = a[column];
-    let valB = b[column];
-
-    if (column === "timestamp") {
-      valA = new Date(valA);
-      valB = new Date(valB);
-    }
-
-    if (valA < valB) return sortDirection === "asc" ? -1 : 1;
-    if (valA > valB) return sortDirection === "asc" ? 1 : -1;
-    return 0;
-  });
-
-  currentPage = 1;
-  renderResultsPage();
+  viewResults(1, sortColumn, sortDirection);
 }
 
 function getSortIndicator(column) {
@@ -251,7 +208,31 @@ function getSortIndicator(column) {
   return " ⇅";
 }
 
+function applyFilter() {
+  const filterBox = document.getElementById("filter-input");
+  currentFilter = filterBox.value.trim();
+  viewResults(1, sortColumn, sortDirection, currentFilter);
+}
 
+async function clearData() {
+  if (!confirm("Are you sure you want to delete all results? This action cannot be undone.")) {
+    return;
+  }
+
+  const res = await fetch("/results/clear", {
+    method: "DELETE",
+    headers: { "Authorization": "Bearer " + getToken() }
+  });
+
+  if (res.ok) {
+    alert("All results deleted successfully.");
+    viewResults(); // Refresh the results
+  } else {
+    alert("Failed to delete results: " + (res.statusText || "Unknown error"));
+  }
+}
+
+// ---------------- Auth ----------------
 function logout() {
   localStorage.removeItem("token");
   window.location.href = "/login";
@@ -277,6 +258,7 @@ async function login(event) {
   }
 }
 
+// ---------------- Init ----------------
 document.addEventListener("DOMContentLoaded", () => {
   const onDashboard = document.getElementById("results") !== null;
   if (onDashboard && !getToken()) {
@@ -292,7 +274,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (stressCard) stressCard.style.display = "none";
     }
 
-    viewResults();
+    viewResults(); // first load
   }
 });
 

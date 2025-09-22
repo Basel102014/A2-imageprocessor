@@ -1,7 +1,7 @@
 import os
 from flask import Blueprint, jsonify, send_from_directory, current_app, request
 from app.utils.auth import token_required
-from app.utils.data_store import load_metadata
+from app.utils.data_store import load_metadata, DATA_FILE
 
 results_bp = Blueprint("results", __name__)
 
@@ -24,5 +24,62 @@ def get_result(filename):
     return send_from_directory(result_folder, filename)
 
 @results_bp.route("/metadata", methods=["GET"])
+@token_required()
 def get_metadata():
-    return jsonify({"metadata": load_metadata()})
+    metadata = load_metadata()
+
+    # Query params
+    page = int(request.args.get("page", 1))
+    limit = int(request.args.get("limit", 5))
+    sort = request.args.get("sort", "timestamp")
+    order = request.args.get("order", "desc")
+    filter_user = request.args.get("user")
+    filter_input = request.args.get("input")
+
+    # Filtering (case-insensitive)
+    if filter_user:
+        metadata = [m for m in metadata if m.get("user", "").lower() == filter_user.lower()]
+    if filter_input:
+        metadata = [
+            m for m in metadata
+            if filter_input.lower() in m.get("input", "").lower()
+            or filter_input.lower() in m.get("user", "").lower()
+        ]
+
+    # Sorting
+    reverse = (order == "desc")
+    if sort == "timestamp":
+        metadata.sort(key=lambda r: r.get("timestamp", ""), reverse=reverse)
+    else:
+        metadata.sort(key=lambda r: str(r.get(sort, "")).lower(), reverse=reverse)
+
+    # Pagination
+    total = len(metadata)
+    start = (page - 1) * limit
+    end = start + limit
+    paginated = metadata[start:end]
+
+    return jsonify({
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "results": paginated
+    })
+
+@results_bp.route("/clear", methods=["DELETE"])
+@token_required(role="admin")
+def clear_results():
+    result_folder = current_app.config["RESULT_FOLDER"]
+    os.makedirs(result_folder, exist_ok=True)
+
+    # Clear result files
+    for filename in os.listdir(result_folder):
+        file_path = os.path.join(result_folder, filename)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+
+    # Clear metadata
+    if os.path.exists(DATA_FILE):
+        os.remove(DATA_FILE)
+
+    return jsonify({"message": "All results and metadata cleared"}), 200

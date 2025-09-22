@@ -56,20 +56,22 @@ def stress_test():
     start_time = time.time()
     counter = 0
 
+    # Keep re-processing the same image until time is up
     while time.time() - start_time < duration:
-        processed = img.filter(ImageFilter.GaussianBlur(radius=10))
-        processed = processed.rotate(90)
+        img = img.filter(ImageFilter.GaussianBlur(radius=5))
+        img = img.rotate(15)  # rotate slightly so it evolves
         counter += 1
 
+    # Save once at the end
     result_folder = current_app.config["RESULT_FOLDER"]
     os.makedirs(result_folder, exist_ok=True)
     out_name = f"stress_{filename}"
     out_path = os.path.join(result_folder, out_name)
-    processed.save(out_path)
+    img.save(out_path)
 
     record = save_metadata(filename, out_name, g.user)
     return jsonify({
-        "message": f"Processed {filename}",
+        "message": f"Stress test completed on {filename}",
         "result": out_name,
         "iterations": counter,
         "metadata": record

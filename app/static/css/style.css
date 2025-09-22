@@ -69,6 +69,17 @@ nav a:hover {
   text-decoration: underline;
 }
 
+.divider {
+  border: 0;
+  height: 1px;
+  background: #444;
+  margin: 2rem 0;
+}
+
+#stress-file, #duration {
+  margin-bottom: 1em;
+}
+
 .thumbnail {
   max-width: 80px;
   max-height: 80px;

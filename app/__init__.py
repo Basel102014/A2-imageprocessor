@@ -3,6 +3,7 @@ from app.routes.auth import auth_bp
 from app.routes.upload import upload_bp
 from app.routes.process import process_bp
 from app.routes.results import results_bp
+from app.routes.client import client_bp
 
 def create_app():
     app = Flask(__name__)
@@ -13,5 +14,6 @@ def create_app():
     app.register_blueprint(upload_bp, url_prefix="/upload")
     app.register_blueprint(process_bp, url_prefix="/process")
     app.register_blueprint(results_bp, url_prefix="/results")
-
+    app.register_blueprint(client_bp)
+    
     return app

@@ -1,6 +1,5 @@
-from flask import Blueprint, request, jsonify, current_app
-import jwt
-import datetime
+from flask import Blueprint, request, jsonify
+from app.services.jwt_handler import encode_jwt
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -16,15 +15,8 @@ def login():
     password = data.get("password")
 
     if username in USERS and USERS[username]["password"] == password:
-        token = jwt.encode(
-            {
-                "user": username,
-                "role": USERS[username]["role"],
-                "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1)
-            },
-            current_app.config["JWT_SECRET"],
-            algorithm="HS256"
-        )
+        role = USERS[username]["role"]
+        token = encode_jwt(username, role)
         return jsonify({"token": token})
 
     return jsonify({"error": "Invalid credentials"}), 401

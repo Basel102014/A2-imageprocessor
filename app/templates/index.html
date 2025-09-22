@@ -3,7 +3,15 @@
 {% block title %}Dashboard - Image Processor{% endblock %}
 
 {% block content %}
+
 <div class="container">
+  <div class="top-bar">
+    <h1>Image Processor Dashboard</h1>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+
+  <hr class="divider">
+  
   <div class="card">
     <h2>Upload Image</h2>
     <form onsubmit="uploadFile(event)">
@@ -21,25 +29,25 @@
     <button onclick="processFile()">Process</button>
   </div>
 
-  <hr class="divider">
+  <div id="admin-section">
+    <hr class="divider">
 
-  <div class="card">
-    <h2>Stress Test (Admin Only)</h2>
+    <div class="card">
+      <h2>Stress Test (Admin Only)</h2>
 
-    <label for="stress-file">Select File</label>
-    <select id="stress-file"></select>
+      <label for="stress-file">Select File</label>
+      <select id="stress-file"></select>
 
-    <label for="duration">Duration (seconds)</label>
-    <input id="duration" type="number" value="10" min="1">
+      <label for="duration">Duration (seconds)</label>
+      <input id="duration" type="number" value="10" min="1">
 
-    <button onclick="stressTest()">Run Stress Test</button>
+      <button onclick="stressTest()">Run Stress Test</button>
+    </div>
   </div>
-
   <hr class="divider">
 
   <div class="card">
     <h2>Results</h2>
-    <button onclick="viewResults()">View Metadata</button>
     <div id="results-container">
       <div id="results"></div>
       <div id="pagination" class="pagination"></div>

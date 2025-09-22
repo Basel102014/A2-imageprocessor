@@ -1,9 +1,10 @@
 import jwt, datetime
 from config import Config
 
-def encode_jwt(username):
+def encode_jwt(username, role):
     payload = {
         "user": username,
+        "role": role,
         "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1)
     }
     return jwt.encode(payload, Config.JWT_SECRET, algorithm="HS256")

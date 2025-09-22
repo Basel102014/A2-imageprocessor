@@ -6,7 +6,7 @@ from app.utils.data_store import load_metadata
 results_bp = Blueprint("results", __name__)
 
 @results_bp.route("/", methods=["GET"])
-@token_required
+@token_required()
 def list_results():
     result_folder = current_app.config["RESULT_FOLDER"]
     os.makedirs(result_folder, exist_ok=True)

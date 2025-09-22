@@ -2,13 +2,13 @@ import time
 from flask import Blueprint, request, jsonify, current_app, g
 from PIL import Image, ImageFilter
 import os
-from app.utils.auth import token_required, admin_required
+from app.utils.auth import token_required
 from app.utils.data_store import save_metadata
 
 process_bp = Blueprint("process", __name__)
 
 @process_bp.route("/", methods=["POST"])
-@token_required
+@token_required()
 def process_image():
     filename = request.json.get("filename")
     if not filename:
@@ -41,7 +41,7 @@ def process_image():
     }), 200
 
 @process_bp.route("/stress", methods=["POST"])
-@admin_required
+@token_required(role="admin")
 def stress_test():
     filename = request.json.get("filename")
     duration = int(request.json.get("duration", 300))  # default 5 minutes

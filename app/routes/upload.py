@@ -13,7 +13,7 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @upload_bp.route("/", methods=["POST"])
-@token_required
+@token_required()
 def upload_file():
     if "file" not in request.files:
         return jsonify({"error": "No file part in request"}), 400
@@ -42,7 +42,7 @@ def upload_file():
     return jsonify({"error": "Invalid file type"}), 400
 
 @upload_bp.route("/list", methods=["GET"])
-@token_required
+@token_required()
 def list_uploads():
     upload_folder = current_app.config["UPLOAD_FOLDER"]
     os.makedirs(upload_folder, exist_ok=True)

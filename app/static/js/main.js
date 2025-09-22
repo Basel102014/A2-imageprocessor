@@ -285,5 +285,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (onDashboard) {
     populateFileDropdown();
+
+    const payload = parseJwt(getToken());
+    if (payload?.role !== "admin") {
+      const stressCard = document.getElementById("stress-card");
+      if (stressCard) stressCard.style.display = "none";
+    }
+
+    viewResults();
   }
 });
+
+function parseJwt(token) {
+  try {
+    return JSON.parse(atob(token.split('.')[1]));
+  } catch (e) {
+    return null;
+  }
+}

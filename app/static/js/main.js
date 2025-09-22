@@ -137,7 +137,6 @@ async function viewResults() {
   sortResults("timestamp");
 
   currentPage = 1;
-  renderResultsPage();
 }
 
 function renderResultsPage() {

@@ -19,7 +19,6 @@ def list_results():
 
 
 @results_bp.route("/<filename>", methods=["GET"])
-@token_required
 def get_result(filename):
     """
     Download a specific processed file by filename.
@@ -29,7 +28,6 @@ def get_result(filename):
         return jsonify({"error": "File not found"}), 404
 
     return send_from_directory(result_folder, filename)
-
 
 @results_bp.route("/metadata", methods=["GET"])
 def get_metadata():

@@ -16,7 +16,8 @@
 
   <div class="card">
     <h2>Process Image</h2>
-    <input id="filename" type="text" placeholder="Enter filename (e.g. favicon.png)">
+    <label for="process-file">Select File</label>
+    <select id="process-file"></select>
     <button onclick="processFile()">Process</button>
   </div>
 
@@ -39,7 +40,10 @@
   <div class="card">
     <h2>Results</h2>
     <button onclick="viewResults()">View Metadata</button>
-    <div id="results"></div>
+    <div id="results-container">
+      <div id="results"></div>
+      <div id="pagination" class="pagination"></div>
+    </div>
   </div>
 </div>
 

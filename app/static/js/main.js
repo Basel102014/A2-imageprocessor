@@ -34,7 +34,13 @@ async function uploadFile(event) {
 }
 
 async function processFile() {
-  const filename = document.getElementById("filename").value;
+  const filename = document.getElementById("process-file").value;
+
+  if (!filename) {
+    alert("Please select a file to process.");
+    return;
+  }
+
   showSpinner();
   const res = await fetch("/process/", {
     method: "POST",
@@ -74,8 +80,8 @@ async function stressTest() {
 }
 
 async function populateFileDropdown() {
-  const select = document.getElementById("stress-file");
-  if (!select) return;
+  const stressSelect = document.getElementById("stress-file");
+  const processSelect = document.getElementById("process-file");
 
   try {
     const res = await fetch("/upload/list", {
@@ -83,13 +89,18 @@ async function populateFileDropdown() {
     });
     const data = await res.json();
 
-    select.innerHTML = "";
+    // Clear both
+    if (stressSelect) stressSelect.innerHTML = "";
+    if (processSelect) processSelect.innerHTML = "";
+
     if (!data.uploads || data.uploads.length === 0) {
       const option = document.createElement("option");
       option.disabled = true;
       option.selected = true;
       option.textContent = "No files available";
-      select.appendChild(option);
+
+      if (stressSelect) stressSelect.appendChild(option.cloneNode(true));
+      if (processSelect) processSelect.appendChild(option.cloneNode(true));
       return;
     }
 
@@ -98,12 +109,20 @@ async function populateFileDropdown() {
       option.value = file.filename;
       const resolutionText = file.resolution ? ` (${file.resolution})` : "";
       option.textContent = `${file.filename}${resolutionText}`;
-      select.appendChild(option);
+
+      if (stressSelect) stressSelect.appendChild(option.cloneNode(true));
+      if (processSelect) processSelect.appendChild(option.cloneNode(true));
     });
   } catch (err) {
     console.error("Failed to load files:", err);
   }
 }
+
+let allResults = [];
+let currentPage = 1;
+const resultsPerPage = 5;
+let sortColumn = "timestamp";
+let sortDirection = "asc";
 
 async function viewResults() {
   showSpinner();
@@ -111,22 +130,39 @@ async function viewResults() {
     headers: { "Authorization": "Bearer " + getToken() }
   });
   const data = await res.json();
+  hideSpinner();
 
-  let html = `
+  allResults = data.metadata || [];
+
+  sortResults("timestamp");
+
+  currentPage = 1;
+  renderResultsPage();
+}
+
+function renderResultsPage() {
+  const resultsDiv = document.getElementById("results");
+  const paginationDiv = document.getElementById("pagination");
+
+  const start = (currentPage - 1) * resultsPerPage;
+  const end = start + resultsPerPage;
+  const pageResults = allResults.slice(start, end);
+
+    let html = `
     <table class="results-table">
-      <thead>
+        <thead>
         <tr>
-          <th>User</th>
-          <th>Input</th>
-          <th>Output</th>
-          <th>Time</th>
-          <th>Preview</th>
+            <th onclick="sortResults('user')">User${getSortIndicator("user")}</th>
+            <th onclick="sortResults('input')">Input${getSortIndicator("input")}</th>
+            <th onclick="sortResults('output')">Output${getSortIndicator("output")}</th>
+            <th onclick="sortResults('timestamp')">Time${getSortIndicator("timestamp")}</th>
+            <th>Preview</th>
         </tr>
-      </thead>
-      <tbody>
-  `;
+        </thead>
+        <tbody>
+    `;
 
-  data.metadata.forEach(r => {
+  pageResults.forEach(r => {
     html += `
       <tr>
         <td>${r.user}</td>
@@ -143,9 +179,79 @@ async function viewResults() {
   });
 
   html += "</tbody></table>";
-  hideSpinner();
-  document.getElementById("results").innerHTML = html;
+  resultsDiv.innerHTML = html;
+	const totalPages = Math.ceil(allResults.length / resultsPerPage);
+	paginationDiv.innerHTML = "";
+
+	if (totalPages > 1) {
+	const prevBtn = document.createElement("button");
+	prevBtn.textContent = "Prev";
+	prevBtn.disabled = currentPage === 1;
+	prevBtn.onclick = () => {
+			if (currentPage > 1) {
+			currentPage--;
+			renderResultsPage();
+			}
+	};
+	paginationDiv.appendChild(prevBtn);
+
+	for (let i = 1; i <= totalPages; i++) {
+			const btn = document.createElement("button");
+			btn.textContent = i;
+			if (i === currentPage) btn.classList.add("active");
+			btn.onclick = () => {
+			currentPage = i;
+			renderResultsPage();
+			};
+			paginationDiv.appendChild(btn);
+	}
+
+	const nextBtn = document.createElement("button");
+	nextBtn.textContent = "Next";
+	nextBtn.disabled = currentPage === totalPages;
+	nextBtn.onclick = () => {
+			if (currentPage < totalPages) {
+			currentPage++;
+			renderResultsPage();
+			}
+	};
+	paginationDiv.appendChild(nextBtn);
+	}
 }
+
+function sortResults(column) {
+  if (sortColumn === column) {
+    sortDirection = sortDirection === "asc" ? "desc" : "asc";
+  } else {
+    sortColumn = column;
+    sortDirection = "asc";
+  }
+
+  allResults.sort((a, b) => {
+    let valA = a[column];
+    let valB = b[column];
+
+    if (column === "timestamp") {
+      valA = new Date(valA);
+      valB = new Date(valB);
+    }
+
+    if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+    if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  currentPage = 1;
+  renderResultsPage();
+}
+
+function getSortIndicator(column) {
+  if (sortColumn === column) {
+    return sortDirection === "asc" ? " ▲" : " ▼";
+  }
+  return " ⇅";
+}
+
 
 function logout() {
   localStorage.removeItem("token");

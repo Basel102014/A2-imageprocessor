@@ -19,7 +19,7 @@ def login():
         token = jwt.encode(
             {
                 "user": username,
-                "role": USERS[username]["role"],   # include role in token
+                "role": USERS[username]["role"],
                 "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1)
             },
             current_app.config["JWT_SECRET"],

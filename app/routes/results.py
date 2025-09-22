@@ -8,9 +8,6 @@ results_bp = Blueprint("results", __name__)
 @results_bp.route("/", methods=["GET"])
 @token_required
 def list_results():
-    """
-    List all processed files in the results folder.
-    """
     result_folder = current_app.config["RESULT_FOLDER"]
     os.makedirs(result_folder, exist_ok=True)
 
@@ -20,9 +17,6 @@ def list_results():
 
 @results_bp.route("/<filename>", methods=["GET"])
 def get_result(filename):
-    """
-    Download a specific processed file by filename.
-    """
     result_folder = current_app.config["RESULT_FOLDER"]
     if not os.path.exists(os.path.join(result_folder, filename)):
         return jsonify({"error": "File not found"}), 404

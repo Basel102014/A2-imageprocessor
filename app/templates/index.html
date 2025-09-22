@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Image Processor</title>
+  <script>
+    function getToken() {
+      return localStorage.getItem("token");
+    }
+
+    async function uploadFile(event) {
+      event.preventDefault();
+      const fileInput = document.getElementById("file");
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+
+      const res = await fetch("/upload/", {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + getToken() },
+        body: formData
+      });
+
+      const data = await res.json();
+      alert(JSON.stringify(data, null, 2));
+    }
+
+    async function processFile() {
+      const filename = document.getElementById("filename").value;
+      const res = await fetch("/process/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + getToken()
+        },
+        body: JSON.stringify({ filename })
+      });
+      const data = await res.json();
+      alert(JSON.stringify(data, null, 2));
+    }
+
+    async function viewResults() {
+      const res = await fetch("/results/metadata", {
+        headers: { "Authorization": "Bearer " + getToken() }
+      });
+      const data = await res.json();
+      document.getElementById("results").textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function stressTest() {
+      const filename = document.getElementById("filename").value;
+      const res = await fetch("/process/stress", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + getToken()
+        },
+        body: JSON.stringify({ filename, duration: 10 })
+      });
+      const data = await res.json();
+      alert(JSON.stringify(data, null, 2));
+    }
+  </script>
+</head>
+<body>
+  <h1>Image Processor Dashboard</h1>
+
+  <h2>Upload</h2>
+  <form onsubmit="uploadFile(event)">
+    <input id="file" type="file" required>
+    <button type="submit">Upload</button>
+  </form>
+
+  <h2>Process</h2>
+  <input id="filename" type="text" placeholder="Enter filename (e.g. favicon.png)">
+  <button onclick="processFile()">Process File</button>
+
+  <h2>Stress Test (Admin Only)</h2>
+  <button onclick="stressTest()">Run Stress Test</button>
+
+  <h2>Results</h2>
+  <button onclick="viewResults()">View Metadata</button>
+  <pre id="results"></pre>
+</body>
+</html>
+<script>
+  if (!localStorage.getItem("token")) {
+    window.location.href = "/login";
+  }
+</script>

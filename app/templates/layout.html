@@ -1,1 +1,16 @@
-<link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.png') }}">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}Image Processor{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.png') }}">
+</head>
+<body>
+  {% block content %}{% endblock %}
+
+  <div id="spinner"><div></div></div>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

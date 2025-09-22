@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login</title>
+  <script>
+    async function login(event) {
+      event.preventDefault();
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      const res = await fetch(`${window.location.origin}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+    
+      let data;
+      try {
+        if (!res.ok) {
+        window.location.href = "/dashboard";
+        }
+        data = await res.json();
+      } catch (error) {
+        alert("Login failed. Please check your username and password and try again.");
+        return;
+      }
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+        window.location.href = "/dashboard?token=" + data.token;
+      } else {
+        alert("Login failed: " + (data.error || "Unknown error"));
+      }
+    }
+  </script>
+</head>
+<body>
+  <h1>Login</h1>
+  <form onsubmit="login(event)">
+    <label>Username: <input id="username" type="text" required></label><br>
+    <label>Password: <input id="password" type="password" required></label><br>
+    <button type="submit">Login</button>
+  </form>
+</body>
+</html>

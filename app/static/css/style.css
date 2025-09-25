@@ -305,3 +305,41 @@ select {
 .logout-btn:hover {
   background: #641d2f;
 }
+
+/* Toast notifications */
+#toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+}
+
+.toast {
+  background: #333;
+  color: #fff;
+  padding: 12px 18px;
+  margin-top: 10px;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.3s, transform 0.3s;
+  font-size: 0.9rem;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast.success {
+  background: #2e7d32; /* green */
+}
+
+.toast.error {
+  background: #c62828; /* red */
+}
+
+.toast.info {
+  background: #1976d2; /* blue */
+}

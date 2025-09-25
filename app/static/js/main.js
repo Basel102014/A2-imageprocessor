@@ -20,6 +20,25 @@ function isAdmin() {
   return payload?.role === "admin";
 }
 
+// Toast helper
+function showToast(message, type = "info") {
+  const container = document.getElementById("toast-container");
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+
+  container.appendChild(toast);
+
+  // Trigger animation
+  setTimeout(() => toast.classList.add("show"), 50);
+
+  // Auto remove after 3s
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
 // ---------------- Upload ----------------
 async function uploadFile(event) {
   event.preventDefault();
@@ -37,7 +56,7 @@ async function uploadFile(event) {
     });
     const data = await res.json();
 
-    alert("Uploaded: " + data.filename);
+    showToast(`Uploaded: ${data.filename}`, "success");
 
     await populateFileDropdown();
     await viewUploads();
@@ -89,12 +108,12 @@ async function deleteUpload(filename) {
   hideSpinner();
 
   if (res.ok) {
-    alert(`Upload "${filename}" deleted`);
+    showToast(`Uploaded: ${data.filename}`, "deleted");
     viewUploads();
     populateFileDropdown();
   } else {
     const data = await res.json();
-    alert("Error: " + (data.error || "Failed to delete"));
+    showToast("Error: " + (data.error || "Failed to delete"), "error");
   }
 }
 
@@ -112,14 +131,14 @@ async function processUpload(filename) {
   const data = await res.json();
   hideSpinner();
 
-  alert("Processed: " + data.result);
+  showToast(`Processed: ${data.result}`, "success");
   await viewResults(currentPage, sortColumn, sortDirection, currentFilter);
 }
 
 async function stressTest() {
   const filename = document.getElementById("stress-file").value;
   const duration = parseInt(document.getElementById("duration").value, 10);
-  if (!filename) return alert("Please select a file to run the stress test on.");
+  if (!filename) return showToast("Please select a file to run the stress test on.", "error");
 
   showSpinner();
   const res = await fetch("/process/stress", {
@@ -133,7 +152,7 @@ async function stressTest() {
   const data = await res.json();
   hideSpinner();
 
-  alert(`Stress Test Results: ${data.iterations} iterations on ${filename}`);
+  showToast(`Stress Test Results: ${data.iterations} iterations on ${filename}`, "info");
   await viewResults(currentPage, sortColumn, sortDirection, currentFilter);
 }
 
@@ -216,11 +235,11 @@ async function deleteResult(filename) {
   hideSpinner();
 
   if (res.ok) {
-    alert(`Result "${filename}" deleted`);
+    showToast(`Result "${filename}" deleted`, "success");
     viewResults(currentPage, sortColumn, sortDirection, currentFilter);
   } else {
     const data = await res.json();
-    alert("Error: " + (data.error || "Failed to delete"));
+    showToast("Error: " + (data.error || "Failed to delete"), "error");
   }
 }
 
@@ -255,10 +274,10 @@ async function clearData() {
   });
 
   if (res.ok) {
-    alert("All results deleted successfully.");
+    showToast("All results deleted successfully.", "success");
     viewResults();
   } else {
-    alert("Failed to delete results: " + (res.statusText || "Unknown error"));
+    showToast("Failed to delete results: " + (res.statusText || "Unknown error"), "error");
   }
 }
 
@@ -293,7 +312,7 @@ function renderUploadsPage(files, total) {
       <thead>
         <tr>
           <th onclick="changeUploadsSort('filename')">Filename${getUploadsSortIndicator("filename")}</th>
-          <th>Thumbnail</th>
+          <th>Preview</th>
           <th onclick="changeUploadsSort('resolution')">Resolution${getUploadsSortIndicator("resolution")}</th>
           <th onclick="changeUploadsSort('size')">Size (KB)${getUploadsSortIndicator("size")}</th>
           <th>Actions</th>
@@ -397,7 +416,7 @@ async function login(event) {
     localStorage.setItem("token", data.token);
     window.location.href = "/dashboard";
   } else {
-    alert("Login failed: " + (data.error || "Unknown error"));
+    showToast("Login failed: " + (data.error || "Unknown error"), "error");
   }
 }
 

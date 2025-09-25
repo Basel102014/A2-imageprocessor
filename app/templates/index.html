@@ -12,6 +12,7 @@
 
   <hr class="divider">
 
+  <!-- Upload -->
   <div class="card">
     <div class="card-header">
       <h2>Upload Image</h2>
@@ -22,15 +23,7 @@
     </form>
   </div>
 
-  <div class="card">
-    <div class="card-header">
-      <h2>Process Image</h2>
-    </div>
-    <label for="process-file">Select File</label>
-    <select id="process-file"></select>
-    <button onclick="processFile()">Process</button>
-  </div>
-
+  <!-- Stress test -->
   <div class="card" id="stress-card">
     <div class="card-header">
       <h2>Stress Test (Admin Only)</h2>
@@ -44,26 +37,31 @@
     <button onclick="stressTest()">Run Stress Test</button>
   </div>
 
+  <!-- Uploaded files -->
   <div class="card">
     <div class="results-header">
       <h2>Uploaded Files</h2>
-      <div class="results-actions" id="upload-actions"></div>
+      <div class="filter-bar">
+        <input id="uploads-filter-input" type="text" placeholder="Search uploads...">
+        <button class="filter-btn" onclick="applyUploadsFilter()">Filter</button>
+      </div>
     </div>
 
     <div id="uploads-list"></div>
     <div id="uploads-pagination" class="pagination"></div>
   </div>
 
+  <!-- Results -->
   <div class="card results-card">
     <div class="results-header">
       <h2>Results</h2>
       <div class="results-actions">
-        <button class="danger-btn" onclick="clearData()">🗑 Delete All Data</button>
+        <button id="clear-data-btn" class="danger-btn" onclick="clearData()">🗑 Delete All Data</button>
       </div>
     </div>
 
     <div class="filter-bar">
-      <input id="filter-input" type="text" placeholder="Search by filename or user">
+      <input id="filter-input" type="text" placeholder="Search results...">
       <button class="filter-btn" onclick="applyFilter()">Filter</button>
     </div>
 

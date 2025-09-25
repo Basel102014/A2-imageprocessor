@@ -46,10 +46,8 @@ async function uploadFile(event) {
   }
 }
 
-
 async function populateFileDropdown(page = 1, limit = 50, sort = "filename", order = "asc", filter = "") {
   const stressSelect = document.getElementById("stress-file");
-  const processSelect = document.getElementById("process-file");
 
   try {
     let url = `/upload/list?page=${page}&limit=${limit}&sort=${sort}&order=${order}`;
@@ -60,22 +58,21 @@ async function populateFileDropdown(page = 1, limit = 50, sort = "filename", ord
     });
     const data = await res.json();
 
-    [stressSelect, processSelect].forEach(select => {
-      if (!select) return;
-      select.innerHTML = "";
+    if (stressSelect) {
+      stressSelect.innerHTML = "";
 
       if (!data.results || data.results.length === 0) {
         const option = new Option("No files available", "", true, true);
         option.disabled = true;
-        select.appendChild(option);
+        stressSelect.appendChild(option);
         return;
       }
 
       data.results.forEach(file => {
         const resolutionText = file.resolution ? ` (${file.resolution})` : "";
-        select.appendChild(new Option(`${file.filename}${resolutionText}`, file.filename));
+        stressSelect.appendChild(new Option(`${file.filename}${resolutionText}`, file.filename));
       });
-    });
+    }
   } catch (err) {
     console.error("Failed to load files:", err);
   }
@@ -94,7 +91,7 @@ async function deleteUpload(filename) {
   if (res.ok) {
     alert(`Upload "${filename}" deleted`);
     viewUploads();
-    populateFileDropdown(); // refresh dropdowns
+    populateFileDropdown();
   } else {
     const data = await res.json();
     alert("Error: " + (data.error || "Failed to delete"));
@@ -102,10 +99,7 @@ async function deleteUpload(filename) {
 }
 
 // ---------------- Processing ----------------
-async function processFile() {
-  const filename = document.getElementById("process-file").value;
-  if (!filename) return alert("Please select a file to process.");
-
+async function processUpload(filename) {
   showSpinner();
   const res = await fetch("/process/", {
     method: "POST",
@@ -268,11 +262,14 @@ async function clearData() {
   }
 }
 
-// ---------------- Uploads list ----------------
+// ---------------- Uploads table ----------------
 let currentUploadsPage = 1;
 const uploadsPerPage = 5;
+let uploadsSortColumn = "filename";
+let uploadsSortDirection = "asc";
+let uploadsFilter = "";
 
-async function viewUploads(page = 1, sort = "filename", order = "asc", q = "") {
+async function viewUploads(page = 1, sort = uploadsSortColumn, order = uploadsSortDirection, q = uploadsFilter) {
   showSpinner();
   let url = `/upload/list?page=${page}&limit=${uploadsPerPage}&sort=${sort}&order=${order}`;
   if (q) url += `&q=${encodeURIComponent(q)}`;
@@ -295,9 +292,10 @@ function renderUploadsPage(files, total) {
     <table class="results-table">
       <thead>
         <tr>
-          <th>Filename</th>
-          <th>Resolution</th>
-          <th>Size (KB)</th>
+          <th onclick="changeUploadsSort('filename')">Filename${getUploadsSortIndicator("filename")}</th>
+          <th>Thumbnail</th>
+          <th onclick="changeUploadsSort('resolution')">Resolution${getUploadsSortIndicator("resolution")}</th>
+          <th onclick="changeUploadsSort('size')">Size (KB)${getUploadsSortIndicator("size")}</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -308,9 +306,15 @@ function renderUploadsPage(files, total) {
     html += `
       <tr>
         <td>${f.filename}</td>
+        <td>
+          <a href="/upload/${f.filename}" target="_blank">
+            <img src="/upload/${f.filename}" alt="Uploaded" class="thumbnail">
+          </a>
+        </td>
         <td>${f.resolution}</td>
         <td>${(f.size_bytes / 1024).toFixed(1)}</td>
         <td>
+          <button onclick="processUpload('${f.filename}')">Process</button>
           ${isAdmin() ? `<button class="danger-btn" onclick="deleteUpload('${f.filename}')">Delete</button>` : ""}
         </td>
       </tr>
@@ -321,6 +325,28 @@ function renderUploadsPage(files, total) {
   uploadsDiv.innerHTML = html;
 
   renderPagination(paginationDiv, Math.ceil(total / uploadsPerPage), viewUploads);
+}
+
+function changeUploadsSort(column) {
+  if (uploadsSortColumn === column) {
+    uploadsSortDirection = uploadsSortDirection === "asc" ? "desc" : "asc";
+  } else {
+    uploadsSortColumn = column;
+    uploadsSortDirection = "asc";
+  }
+  viewUploads(1, uploadsSortColumn, uploadsSortDirection, uploadsFilter);
+}
+
+function getUploadsSortIndicator(column) {
+  if (uploadsSortColumn === column) {
+    return uploadsSortDirection === "asc" ? " ▲" : " ▼";
+  }
+  return " ⇅";
+}
+
+function applyUploadsFilter() {
+  uploadsFilter = document.getElementById("uploads-filter-input").value.trim();
+  viewUploads(1, uploadsSortColumn, uploadsSortDirection, uploadsFilter);
 }
 
 // ---------------- Pagination helper ----------------
@@ -389,9 +415,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!isAdmin()) {
       const stressCard = document.getElementById("stress-card");
       if (stressCard) stressCard.style.display = "none";
+
+      const clearBtn = document.getElementById("clear-data-btn");
+      if (clearBtn) clearBtn.style.display = "none";
     }
 
-    viewResults(); // initial load
-    viewUploads(); // load uploads table
+    viewResults();
+    viewUploads();
   }
 });

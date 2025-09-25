@@ -1,5 +1,5 @@
 import os
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, send_from_directory
 from werkzeug.utils import secure_filename
 from app.utils.auth import token_required
 from PIL import Image
@@ -113,6 +113,17 @@ def list_uploads():
         "total": total,
         "results": paginated
     })
+
+
+@upload_bp.route("/<filename>", methods=["GET"])
+def get_upload(filename):
+    upload_folder = current_app.config["UPLOAD_FOLDER"]
+    file_path = os.path.join(upload_folder, filename)
+
+    if not os.path.exists(file_path):
+        return jsonify({"error": "File not found"}), 404
+
+    return send_from_directory(upload_folder, filename)
 
 
 @upload_bp.route("/<filename>", methods=["DELETE"])

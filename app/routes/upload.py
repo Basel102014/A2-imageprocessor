@@ -47,11 +47,11 @@ def list_uploads():
     upload_folder = current_app.config["UPLOAD_FOLDER"]
     os.makedirs(upload_folder, exist_ok=True)
 
+    # Gather files
     files = []
     for filename in os.listdir(upload_folder):
         file_path = os.path.join(upload_folder, filename)
         if os.path.isfile(file_path):
-            # Try to read resolution
             try:
                 with Image.open(file_path) as img:
                     resolution = f"{img.width}x{img.height}"
@@ -63,4 +63,40 @@ def list_uploads():
                 "resolution": resolution
             })
 
-    return jsonify({"uploads": files})
+    # Query params
+    page = int(request.args.get("page", 1))
+    limit = int(request.args.get("limit", 10))
+    sort = request.args.get("sort", "filename")
+    order = request.args.get("order", "asc")
+    q = request.args.get("q")  # filter by substring in filename
+
+    # Filtering
+    if q:
+        files = [f for f in files if q.lower() in f["filename"].lower()]
+
+    # Sorting
+    reverse = (order == "desc")
+    if sort == "resolution":
+        # Sort by width x height if possible, fallback to string
+        def res_key(f):
+            try:
+                w, h = map(int, f["resolution"].split("x"))
+                return w * h
+            except Exception:
+                return 0
+        files.sort(key=res_key, reverse=reverse)
+    else:
+        files.sort(key=lambda f: str(f.get(sort, "")).lower(), reverse=reverse)
+
+    # Pagination
+    total = len(files)
+    start = (page - 1) * limit
+    end = start + limit
+    paginated = files[start:end]
+
+    return jsonify({
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "results": paginated
+    })

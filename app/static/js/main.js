@@ -72,12 +72,17 @@ async function stressTest() {
   await viewResults(currentPage, sortColumn, sortDirection, currentFilter);
 }
 
-async function populateFileDropdown() {
+async function populateFileDropdown(page = 1, limit = 50, sort = "filename", order = "asc", filter = "") {
   const stressSelect = document.getElementById("stress-file");
   const processSelect = document.getElementById("process-file");
 
   try {
-    const res = await fetch("/upload/list", {
+    let url = `/upload/list?page=${page}&limit=${limit}&sort=${sort}&order=${order}`;
+    if (filter) {
+      url += `&q=${encodeURIComponent(filter)}`;
+    }
+
+    const res = await fetch(url, {
       headers: { "Authorization": "Bearer " + getToken() }
     });
     const data = await res.json();
@@ -86,18 +91,21 @@ async function populateFileDropdown() {
       if (!select) return;
       select.innerHTML = "";
 
-      if (!data.uploads || data.uploads.length === 0) {
+      if (!data.results || data.results.length === 0) {
         const option = new Option("No files available", "", true, true);
         option.disabled = true;
         select.appendChild(option);
         return;
       }
 
-      data.uploads.forEach(file => {
+      data.results.forEach(file => {
         const resolutionText = file.resolution ? ` (${file.resolution})` : "";
         select.appendChild(new Option(`${file.filename}${resolutionText}`, file.filename));
       });
     });
+
+    console.log(`Page ${data.page} of ${Math.ceil(data.total / data.limit)} (${data.total} files total)`);
+
   } catch (err) {
     console.error("Failed to load files:", err);
   }

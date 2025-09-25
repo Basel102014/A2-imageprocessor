@@ -1,5 +1,6 @@
 import time
 import uuid
+import multiprocessing
 from flask import Blueprint, request, jsonify, current_app, g
 from PIL import Image, ImageFilter, ImageOps
 import os
@@ -13,12 +14,12 @@ def unique_filename(prefix, original_name, result_folder):
     """Generate a unique output filename to avoid overwriting."""
     base, ext = os.path.splitext(original_name)
     while True:
-        # Use timestamp + uuid for uniqueness
         candidate = f"{prefix}_{base}_{int(time.time())}_{uuid.uuid4().hex[:6]}{ext}"
         if not os.path.exists(os.path.join(result_folder, candidate)):
             return candidate
 
 
+# ---------------- Normal Processing ----------------
 @process_bp.route("/", methods=["POST"])
 @token_required()
 def process_image():
@@ -87,39 +88,60 @@ def process_image():
         return jsonify({"error": f"Processing failed: {str(e)}"}), 500
 
 
+# ---------------- Stress Test ----------------
+def worker_task(input_path, duration, output_path):
+    """Repeatedly process the image for a given duration, save one final result."""
+    end_time = time.time() + duration
+    img = Image.open(input_path)
+
+    while time.time() < end_time:
+        img = img.rotate(45)
+        img = img.filter(ImageFilter.GaussianBlur(5))
+        img = img.transpose(Image.FLIP_LEFT_RIGHT)
+
+    # Save the final processed image from this worker
+    img.save(output_path)
+
+
 @process_bp.route("/stress", methods=["POST"])
-@token_required(role="admin")
+@token_required()
 def stress_test():
-    filename = request.json.get("filename")
-    duration = int(request.json.get("duration", 300))  # default 5 minutes
+    """Stress test using all CPU cores by repeatedly processing an image."""
+    data = request.json
+    filename = data.get("filename")
+    duration = int(data.get("duration", 30))
 
     upload_folder = current_app.config["UPLOAD_FOLDER"]
-    input_path = os.path.join(upload_folder, filename)
+    result_folder = current_app.config["RESULT_FOLDER"]
 
+    input_path = os.path.join(upload_folder, filename)
     if not os.path.exists(input_path):
         return jsonify({"error": "File not found"}), 404
 
-    img = Image.open(input_path)
-    start_time = time.time()
-    counter = 0
-
-    # Keep re-processing the same image until time is up
-    while time.time() - start_time < duration:
-        img = img.filter(ImageFilter.GaussianBlur(radius=5))
-        img = img.rotate(15)  # rotate slightly so it evolves
-        counter += 1
-
-    # Save once at the end with a unique name
-    result_folder = current_app.config["RESULT_FOLDER"]
     os.makedirs(result_folder, exist_ok=True)
-    out_name = unique_filename("stress", filename, result_folder)
-    out_path = os.path.join(result_folder, out_name)
-    img.save(out_path)
 
-    record = save_results_metadata(filename, out_name, g.user)
+    num_workers = multiprocessing.cpu_count()
+    processes = []
+    outputs = []
+
+    for i in range(num_workers):
+        out_name = unique_filename(f"stress{i}", filename, result_folder)
+        out_path = os.path.join(result_folder, out_name)
+        outputs.append(out_name)
+
+        p = multiprocessing.Process(target=worker_task, args=(input_path, duration, out_path))
+        p.start()
+        processes.append(p)
+
+    for p in processes:
+        p.join()
+
+    # Save metadata for each worker’s result
+    for out in outputs:
+        save_results_metadata(filename, out, {"username": "stress-test", "timestamp": int(time.time())})
+
     return jsonify({
-        "message": f"Stress test completed on {filename}",
-        "result": out_name,
-        "iterations": counter,
-        "metadata": record
-    }), 200
+        "message": f"Stress test completed for {duration}s",
+        "cores_used": num_workers,
+        "results": outputs
+    })

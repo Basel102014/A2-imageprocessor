@@ -1,13 +1,16 @@
 import os
+import json
 from flask import Blueprint, jsonify, send_from_directory, current_app, request
 from app.utils.auth import token_required
 from app.utils.data_store import load_metadata, DATA_FILE
 
 results_bp = Blueprint("results", __name__)
 
+
 @results_bp.route("/", methods=["GET"])
 @token_required()
 def list_results():
+    """List all result files in the results folder."""
     result_folder = current_app.config["RESULT_FOLDER"]
     os.makedirs(result_folder, exist_ok=True)
 
@@ -17,15 +20,20 @@ def list_results():
 
 @results_bp.route("/<filename>", methods=["GET"])
 def get_result(filename):
+    """Download a specific result file if it exists."""
     result_folder = current_app.config["RESULT_FOLDER"]
-    if not os.path.exists(os.path.join(result_folder, filename)):
+    file_path = os.path.join(result_folder, filename)
+
+    if not os.path.exists(file_path):
         return jsonify({"error": "File not found"}), 404
 
     return send_from_directory(result_folder, filename)
 
+
 @results_bp.route("/metadata", methods=["GET"])
 @token_required()
 def get_metadata():
+    """Get paginated, sortable, and filterable result metadata."""
     metadata = load_metadata()
 
     # Query params
@@ -66,20 +74,46 @@ def get_metadata():
         "results": paginated
     })
 
+
 @results_bp.route("/clear", methods=["DELETE"])
 @token_required(role="admin")
 def clear_results():
+    """Delete all result files and reset metadata."""
     result_folder = current_app.config["RESULT_FOLDER"]
     os.makedirs(result_folder, exist_ok=True)
 
-    # Clear result files
+    # Delete all result files
     for filename in os.listdir(result_folder):
         file_path = os.path.join(result_folder, filename)
         if os.path.isfile(file_path):
             os.remove(file_path)
 
-    # Clear metadata
+    # Delete metadata file
     if os.path.exists(DATA_FILE):
         os.remove(DATA_FILE)
 
     return jsonify({"message": "All results and metadata cleared"}), 200
+
+
+@results_bp.route("/<filename>", methods=["DELETE"])
+@token_required(role="admin")
+def delete_result(filename):
+    """Delete a specific result file and prune metadata."""
+    result_folder = current_app.config["RESULT_FOLDER"]
+    file_path = os.path.join(result_folder, filename)
+
+    if not os.path.exists(file_path):
+        return jsonify({"error": "File not found"}), 404
+
+    try:
+        os.remove(file_path)
+
+        # Remove entry from metadata
+        metadata = load_metadata()
+        metadata = [m for m in metadata if m.get("output") != filename]
+        with open(DATA_FILE, "w") as f:
+            json.dump(metadata, f, indent=2)
+
+        return jsonify({"message": f"Result '{filename}' deleted"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

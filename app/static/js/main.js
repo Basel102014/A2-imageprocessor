@@ -1,3 +1,4 @@
+// ---------------- Utils ----------------
 function showSpinner() {
   document.getElementById("spinner").style.display = "flex";
 }
@@ -7,10 +8,23 @@ function hideSpinner() {
 function getToken() {
   return localStorage.getItem("token");
 }
+function parseJwt(token) {
+  try {
+    return JSON.parse(atob(token.split('.')[1]));
+  } catch {
+    return null;
+  }
+}
+function isAdmin() {
+  const payload = parseJwt(getToken());
+  return payload?.role === "admin";
+}
 
+// ---------------- Upload ----------------
 async function uploadFile(event) {
   event.preventDefault();
   showSpinner();
+
   const fileInput = document.getElementById("file");
   const formData = new FormData();
   formData.append("file", fileInput.files[0]);
@@ -22,55 +36,16 @@ async function uploadFile(event) {
       body: formData
     });
     const data = await res.json();
+
     alert("Uploaded: " + data.filename);
+
     await populateFileDropdown();
+    await viewUploads();
   } finally {
     hideSpinner();
   }
 }
 
-async function processFile() {
-  const filename = document.getElementById("process-file").value;
-  if (!filename) return alert("Please select a file to process.");
-
-  showSpinner();
-  const res = await fetch("/process/", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + getToken()
-    },
-    body: JSON.stringify({ filename })
-  });
-  const data = await res.json();
-  hideSpinner();
-  alert("Processed: " + data.result);
-
-  // Refresh results table with current pagination/sort/filter
-  await viewResults(currentPage, sortColumn, sortDirection, currentFilter);
-}
-
-async function stressTest() {
-  const filename = document.getElementById("stress-file").value;
-  const duration = parseInt(document.getElementById("duration").value, 10);
-  if (!filename) return alert("Please select a file to run the stress test on.");
-
-  showSpinner();
-  const res = await fetch("/process/stress", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + getToken()
-    },
-    body: JSON.stringify({ filename, duration })
-  });
-  const data = await res.json();
-  hideSpinner();
-  alert(`Stress Test Results: ${data.iterations} iterations on ${filename}`);
-
-  // Refresh results table with current pagination/sort/filter
-  await viewResults(currentPage, sortColumn, sortDirection, currentFilter);
-}
 
 async function populateFileDropdown(page = 1, limit = 50, sort = "filename", order = "asc", filter = "") {
   const stressSelect = document.getElementById("stress-file");
@@ -78,9 +53,7 @@ async function populateFileDropdown(page = 1, limit = 50, sort = "filename", ord
 
   try {
     let url = `/upload/list?page=${page}&limit=${limit}&sort=${sort}&order=${order}`;
-    if (filter) {
-      url += `&q=${encodeURIComponent(filter)}`;
-    }
+    if (filter) url += `&q=${encodeURIComponent(filter)}`;
 
     const res = await fetch(url, {
       headers: { "Authorization": "Bearer " + getToken() }
@@ -103,15 +76,74 @@ async function populateFileDropdown(page = 1, limit = 50, sort = "filename", ord
         select.appendChild(new Option(`${file.filename}${resolutionText}`, file.filename));
       });
     });
-
-    console.log(`Page ${data.page} of ${Math.ceil(data.total / data.limit)} (${data.total} files total)`);
-
   } catch (err) {
     console.error("Failed to load files:", err);
   }
 }
 
-// ---------------- Results table ----------------
+async function deleteUpload(filename) {
+  if (!confirm(`Delete upload "${filename}"?`)) return;
+
+  showSpinner();
+  const res = await fetch(`/upload/${filename}`, {
+    method: "DELETE",
+    headers: { "Authorization": "Bearer " + getToken() }
+  });
+  hideSpinner();
+
+  if (res.ok) {
+    alert(`Upload "${filename}" deleted`);
+    viewUploads();
+    populateFileDropdown(); // refresh dropdowns
+  } else {
+    const data = await res.json();
+    alert("Error: " + (data.error || "Failed to delete"));
+  }
+}
+
+// ---------------- Processing ----------------
+async function processFile() {
+  const filename = document.getElementById("process-file").value;
+  if (!filename) return alert("Please select a file to process.");
+
+  showSpinner();
+  const res = await fetch("/process/", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + getToken()
+    },
+    body: JSON.stringify({ filename })
+  });
+  const data = await res.json();
+  hideSpinner();
+
+  alert("Processed: " + data.result);
+  await viewResults(currentPage, sortColumn, sortDirection, currentFilter);
+}
+
+async function stressTest() {
+  const filename = document.getElementById("stress-file").value;
+  const duration = parseInt(document.getElementById("duration").value, 10);
+  if (!filename) return alert("Please select a file to run the stress test on.");
+
+  showSpinner();
+  const res = await fetch("/process/stress", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + getToken()
+    },
+    body: JSON.stringify({ filename, duration })
+  });
+  const data = await res.json();
+  hideSpinner();
+
+  alert(`Stress Test Results: ${data.iterations} iterations on ${filename}`);
+  await viewResults(currentPage, sortColumn, sortDirection, currentFilter);
+}
+
+// ---------------- Results ----------------
 let currentPage = 1;
 const resultsPerPage = 5;
 let sortColumn = "timestamp";
@@ -122,9 +154,7 @@ let currentFilter = "";
 async function viewResults(page = 1, sort = sortColumn, order = sortDirection, filter = currentFilter) {
   showSpinner();
   let url = `/results/metadata?page=${page}&limit=${resultsPerPage}&sort=${sort}&order=${order}`;
-  if (filter) {
-    url += `&input=${encodeURIComponent(filter)}`;
-  }
+  if (filter) url += `&input=${encodeURIComponent(filter)}`;
 
   const res = await fetch(url, {
     headers: { "Authorization": "Bearer " + getToken() }
@@ -134,7 +164,6 @@ async function viewResults(page = 1, sort = sortColumn, order = sortDirection, f
 
   currentPage = data.page;
   totalPages = Math.ceil(data.total / resultsPerPage);
-
   renderResultsPage(data.results);
 }
 
@@ -151,6 +180,7 @@ function renderResultsPage(results) {
           <th onclick="changeSort('output')">Output${getSortIndicator("output")}</th>
           <th onclick="changeSort('timestamp')">Time${getSortIndicator("timestamp")}</th>
           <th>Preview</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -168,6 +198,9 @@ function renderResultsPage(results) {
             <img src="/results/${r.output}" alt="Processed" class="thumbnail">
           </a>
         </td>
+        <td>
+          ${isAdmin() ? `<button class="danger-btn" onclick="deleteResult('${r.output}')">Delete</button>` : ""}
+        </td>
       </tr>
     `;
   });
@@ -175,27 +208,25 @@ function renderResultsPage(results) {
   html += "</tbody></table>";
   resultsDiv.innerHTML = html;
 
-  paginationDiv.innerHTML = "";
-  if (totalPages > 1) {
-    const prevBtn = document.createElement("button");
-    prevBtn.textContent = "Prev";
-    prevBtn.disabled = currentPage === 1;
-    prevBtn.onclick = () => viewResults(currentPage - 1);
-    paginationDiv.appendChild(prevBtn);
+  renderPagination(paginationDiv, totalPages, viewResults);
+}
 
-    for (let i = 1; i <= totalPages; i++) {
-      const btn = document.createElement("button");
-      btn.textContent = i;
-      if (i === currentPage) btn.classList.add("active");
-      btn.onclick = () => viewResults(i);
-      paginationDiv.appendChild(btn);
-    }
+async function deleteResult(filename) {
+  if (!confirm(`Delete result "${filename}"?`)) return;
 
-    const nextBtn = document.createElement("button");
-    nextBtn.textContent = "Next";
-    nextBtn.disabled = currentPage === totalPages;
-    nextBtn.onclick = () => viewResults(currentPage + 1);
-    paginationDiv.appendChild(nextBtn);
+  showSpinner();
+  const res = await fetch(`/results/${filename}`, {
+    method: "DELETE",
+    headers: { "Authorization": "Bearer " + getToken() }
+  });
+  hideSpinner();
+
+  if (res.ok) {
+    alert(`Result "${filename}" deleted`);
+    viewResults(currentPage, sortColumn, sortDirection, currentFilter);
+  } else {
+    const data = await res.json();
+    alert("Error: " + (data.error || "Failed to delete"));
   }
 }
 
@@ -217,15 +248,12 @@ function getSortIndicator(column) {
 }
 
 function applyFilter() {
-  const filterBox = document.getElementById("filter-input");
-  currentFilter = filterBox.value.trim();
+  currentFilter = document.getElementById("filter-input").value.trim();
   viewResults(1, sortColumn, sortDirection, currentFilter);
 }
 
 async function clearData() {
-  if (!confirm("Are you sure you want to delete all results? This action cannot be undone.")) {
-    return;
-  }
+  if (!confirm("Are you sure you want to delete all results? This action cannot be undone.")) return;
 
   const res = await fetch("/results/clear", {
     method: "DELETE",
@@ -234,10 +262,91 @@ async function clearData() {
 
   if (res.ok) {
     alert("All results deleted successfully.");
-    viewResults(); // Refresh the results
+    viewResults();
   } else {
     alert("Failed to delete results: " + (res.statusText || "Unknown error"));
   }
+}
+
+// ---------------- Uploads list ----------------
+let currentUploadsPage = 1;
+const uploadsPerPage = 5;
+
+async function viewUploads(page = 1, sort = "filename", order = "asc", q = "") {
+  showSpinner();
+  let url = `/upload/list?page=${page}&limit=${uploadsPerPage}&sort=${sort}&order=${order}`;
+  if (q) url += `&q=${encodeURIComponent(q)}`;
+
+  const res = await fetch(url, {
+    headers: { "Authorization": "Bearer " + getToken() }
+  });
+  const data = await res.json();
+  hideSpinner();
+
+  currentUploadsPage = data.page;
+  renderUploadsPage(data.results, data.total);
+}
+
+function renderUploadsPage(files, total) {
+  const uploadsDiv = document.getElementById("uploads-list");
+  const paginationDiv = document.getElementById("uploads-pagination");
+
+  let html = `
+    <table class="results-table">
+      <thead>
+        <tr>
+          <th>Filename</th>
+          <th>Resolution</th>
+          <th>Size (KB)</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  files.forEach(f => {
+    html += `
+      <tr>
+        <td>${f.filename}</td>
+        <td>${f.resolution}</td>
+        <td>${(f.size_bytes / 1024).toFixed(1)}</td>
+        <td>
+          ${isAdmin() ? `<button class="danger-btn" onclick="deleteUpload('${f.filename}')">Delete</button>` : ""}
+        </td>
+      </tr>
+    `;
+  });
+
+  html += "</tbody></table>";
+  uploadsDiv.innerHTML = html;
+
+  renderPagination(paginationDiv, Math.ceil(total / uploadsPerPage), viewUploads);
+}
+
+// ---------------- Pagination helper ----------------
+function renderPagination(container, totalPages, callback) {
+  container.innerHTML = "";
+  if (totalPages <= 1) return;
+
+  const prevBtn = document.createElement("button");
+  prevBtn.textContent = "Prev";
+  prevBtn.disabled = currentPage === 1;
+  prevBtn.onclick = () => callback(currentPage - 1);
+  container.appendChild(prevBtn);
+
+  for (let i = 1; i <= totalPages; i++) {
+    const btn = document.createElement("button");
+    btn.textContent = i;
+    if (i === currentPage) btn.classList.add("active");
+    btn.onclick = () => callback(i);
+    container.appendChild(btn);
+  }
+
+  const nextBtn = document.createElement("button");
+  nextBtn.textContent = "Next";
+  nextBtn.disabled = currentPage === totalPages;
+  nextBtn.onclick = () => callback(currentPage + 1);
+  container.appendChild(nextBtn);
 }
 
 // ---------------- Auth ----------------
@@ -271,25 +380,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const onDashboard = document.getElementById("results") !== null;
   if (onDashboard && !getToken()) {
     window.location.href = "/login";
+    return;
   }
 
   if (onDashboard) {
     populateFileDropdown();
 
-    const payload = parseJwt(getToken());
-    if (payload?.role !== "admin") {
+    if (!isAdmin()) {
       const stressCard = document.getElementById("stress-card");
       if (stressCard) stressCard.style.display = "none";
     }
 
-    viewResults(); // first load
+    viewResults(); // initial load
+    viewUploads(); // load uploads table
   }
 });
-
-function parseJwt(token) {
-  try {
-    return JSON.parse(atob(token.split('.')[1]));
-  } catch (e) {
-    return null;
-  }
-}

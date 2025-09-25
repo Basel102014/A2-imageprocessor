@@ -28,4 +28,4 @@ COPY . .
 EXPOSE 8080
 
 # Run the app with gunicorn
-CMD ["gunicorn", "-b", "0.0.0.0:8080", "run:app"]
+CMD ["gunicorn", "-b", "0.0.0.0:8080", "--timeout", "500", "run:app"]

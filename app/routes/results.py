@@ -1,8 +1,6 @@
-import os
-import json
-from flask import Blueprint, jsonify, send_from_directory, current_app, request, g
+from flask import Blueprint, jsonify, request, g
 from app.utils.auth import token_required
-from app.utils.data_store import load_results, DATA_FILE
+from app.services import s3, ddb
 
 results_bp = Blueprint("results", __name__)
 
@@ -10,29 +8,24 @@ results_bp = Blueprint("results", __name__)
 @results_bp.route("/", methods=["GET"])
 @token_required()
 def list_results():
-    """List all result files in the results folder."""
-    print("[DEBUG] /results/ (GET) hit → listing results")
-    result_folder = current_app.config["RESULT_FOLDER"]
-    os.makedirs(result_folder, exist_ok=True)
-
-    files = os.listdir(result_folder)
-    print(f"[DEBUG] Files found in {result_folder}: {files}")
+    """List all result files stored in S3."""
+    print("[DEBUG] /results/ (GET) hit → listing results from S3")
+    files = s3.list_files_with_prefix("results/")
+    print(f"[DEBUG] Files found in S3 results/: {files}")
     return jsonify({"results": files})
 
 
 @results_bp.route("/<filename>", methods=["GET"])
 def get_result(filename):
-    """Download a specific result file if it exists."""
-    print(f"[DEBUG] /results/{filename} (GET) hit → attempting to fetch file")
-    result_folder = current_app.config["RESULT_FOLDER"]
-    file_path = os.path.join(result_folder, filename)
-
-    if not os.path.exists(file_path):
-        print(f"[DEBUG] File not found at {file_path}")
+    """Generate a pre-signed URL to download a specific result file."""
+    print(f"[DEBUG] /results/{filename} (GET) hit → presigned URL")
+    s3_key = f"results/{filename}"
+    url = s3.generate_presigned_url(s3_key)
+    if not url:
+        print(f"[DEBUG] File not found in S3: {s3_key}")
         return jsonify({"error": "File not found"}), 404
-
-    print(f"[DEBUG] Serving file {file_path}")
-    return send_from_directory(result_folder, filename)
+    print(f"[DEBUG] Generated presigned URL: {url}")
+    return jsonify({"download_url": url})
 
 
 @results_bp.route("/metadata", methods=["GET"])
@@ -40,13 +33,14 @@ def get_result(filename):
 def get_metadata():
     """Get paginated, sortable, and filterable result metadata."""
     print("[DEBUG] /results/metadata (GET) hit")
-    metadata = load_results()
+    metadata = ddb.load_results()
     print(f"[DEBUG] Loaded metadata count: {len(metadata)}")
 
     # Role-based filtering
     if g.user.get("role") != "admin":
+        before = len(metadata)
         metadata = [m for m in metadata if m.get("user") == g.user.get("username")]
-        print(f"[DEBUG] User '{g.user.get('username')}' filtered metadata count: {len(metadata)}")
+        print(f"[DEBUG] User '{g.user.get('username')}' filtered metadata count: {before} → {len(metadata)}")
 
     # Query params
     page = int(request.args.get("page", 1))
@@ -97,24 +91,17 @@ def get_metadata():
 @results_bp.route("/clear", methods=["DELETE"])
 @token_required(role="admin")
 def clear_results():
-    """Delete all result files and reset metadata."""
-    print("[DEBUG] /results/clear (DELETE) hit → clearing results")
-    result_folder = current_app.config["RESULT_FOLDER"]
-    os.makedirs(result_folder, exist_ok=True)
-
-    # Delete all result files
-    for filename in os.listdir(result_folder):
-        file_path = os.path.join(result_folder, filename)
-        if os.path.isfile(file_path):
-            os.remove(file_path)
-            print(f"[DEBUG] Deleted file: {file_path}")
-
-    # Delete metadata file
-    if os.path.exists(DATA_FILE):
-        os.remove(DATA_FILE)
-        print(f"[DEBUG] Deleted metadata file: {DATA_FILE}")
-
-    return jsonify({"message": "All results and metadata cleared"}), 200
+    """Delete all result files and metadata."""
+    print("[DEBUG] /results/clear (DELETE) hit")
+    try:
+        s3.clear_prefix("results/")
+        print("[DEBUG] Cleared all results from S3")
+        ddb.clear_results()
+        print("[DEBUG] Cleared all result metadata from DynamoDB")
+        return jsonify({"message": "All results and metadata cleared"}), 200
+    except Exception as e:
+        print(f"[DEBUG] Error clearing results: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 @results_bp.route("/<filename>", methods=["DELETE"])
@@ -122,27 +109,19 @@ def clear_results():
 def delete_result(filename):
     """Delete a specific result file and prune metadata."""
     print(f"[DEBUG] /results/{filename} (DELETE) hit")
-    result_folder = current_app.config["RESULT_FOLDER"]
-    file_path = os.path.join(result_folder, filename)
-
-    if not os.path.exists(file_path):
-        print(f"[DEBUG] File not found for deletion: {file_path}")
-        return jsonify({"error": "File not found"}), 404
-
     try:
-        os.remove(file_path)
-        print(f"[DEBUG] Deleted file: {file_path}")
+        s3_key = f"results/{filename}"
+        s3.delete_file_from_s3(s3_key)
+        print(f"[DEBUG] Deleted file from S3: {s3_key}")
 
-        # Remove entry from metadata
-        metadata = load_results()
-        before = len(metadata)
-        metadata = [m for m in metadata if m.get("output") != filename]
-        after = len(metadata)
-        print(f"[DEBUG] Metadata pruned: {before} → {after}")
-
-        with open(DATA_FILE, "w") as f:
-            json.dump(metadata, f, indent=2)
-            print(f"[DEBUG] Metadata file updated: {DATA_FILE}")
+        # Delete metadata entry
+        metadata = ddb.load_results()
+        match = next((m for m in metadata if m.get("output") == filename), None)
+        if match:
+            ddb.delete_result_metadata(match["id"])
+            print(f"[DEBUG] Deleted metadata from DynamoDB: {match['id']}")
+        else:
+            print(f"[DEBUG] No metadata entry found for {filename}")
 
         return jsonify({"message": f"Result '{filename}' deleted"}), 200
     except Exception as e:

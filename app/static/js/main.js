@@ -244,8 +244,8 @@ function renderResultsPage(results) {
     html += `
       <tr>
         <td>${r.user}</td>
-        <td>${r.input}</td>
-        <td>${r.output}</td>
+        <td class="filename-cell" title="${r.input}">${r.input}</td>
+        <td class="filename-cell" title="${r.output}">${r.output}</td>
         <td>${new Date(r.timestamp).toLocaleString()}</td>
         <td>
           <a href="/results/${r.output}" target="_blank">
@@ -369,7 +369,7 @@ function renderUploadsPage(files, total) {
   files.forEach(f => {
     html += `
       <tr>
-        <td>${f.filename}</td>
+        <td class="filename-cell" title="${f.filename}">${f.filename}</td>
         <td>
           <a href="/upload/${f.filename}" target="_blank">
             <img src="/upload/${f.filename}" alt="Uploaded" class="thumbnail">

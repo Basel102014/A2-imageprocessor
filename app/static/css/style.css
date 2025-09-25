@@ -169,6 +169,13 @@ select {
   box-shadow: 0 0 6px rgba(0,0,0,0.5);
 }
 
+.filename-cell {
+  max-width: 200px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 /* ---------------- Pagination ---------------- */
 .pagination {
   margin-top: 15px;

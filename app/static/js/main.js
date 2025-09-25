@@ -368,6 +368,24 @@ function applyUploadsFilter() {
   viewUploads(1, uploadsSortColumn, uploadsSortDirection, uploadsFilter);
 }
 
+async function clearUploads() {
+  if (!confirm("Are you sure you want to delete ALL uploads? This cannot be undone.")) return;
+
+  const res = await fetch("/upload/clear", {
+    method: "DELETE",
+    headers: { "Authorization": "Bearer " + getToken() }
+  });
+
+  if (res.ok) {
+    showToast("All uploads deleted successfully.");
+    viewUploads();
+    populateFileDropdown(); // refresh process/stress dropdowns
+  } else {
+    const data = await res.json();
+    showToast("Error: " + (data.error || "Failed to delete uploads"), "error");
+  }
+}
+
 // ---------------- Pagination helper ----------------
 function renderPagination(container, totalPages, callback) {
   container.innerHTML = "";
@@ -437,6 +455,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const clearBtn = document.getElementById("clear-data-btn");
       if (clearBtn) clearBtn.style.display = "none";
+
+      const clearUploadsBtn = document.getElementById("clear-uploads-btn");
+      if (clearUploadsBtn) clearUploadsBtn.style.display = "none";
     }
 
     viewResults();

@@ -1,8 +1,8 @@
 import os
 import json
-from flask import Blueprint, jsonify, send_from_directory, current_app, request
+from flask import Blueprint, jsonify, send_from_directory, current_app, request, g
 from app.utils.auth import token_required
-from app.utils.data_store import load_metadata, DATA_FILE
+from app.utils.data_store import load_results, DATA_FILE
 
 results_bp = Blueprint("results", __name__)
 
@@ -33,8 +33,15 @@ def get_result(filename):
 @results_bp.route("/metadata", methods=["GET"])
 @token_required()
 def get_metadata():
-    """Get paginated, sortable, and filterable result metadata."""
-    metadata = load_metadata()
+    """Get paginated, sortable, and filterable result metadata.
+       - Normal users: only their own metadata
+       - Admins: all metadata
+    """
+    metadata = load_results()
+
+    # Role-based filtering
+    if g.user.get("role") != "admin":
+        metadata = [m for m in metadata if m.get("user") == g.user.get("username")]
 
     # Query params
     page = int(request.args.get("page", 1))
@@ -44,8 +51,8 @@ def get_metadata():
     filter_user = request.args.get("user")
     filter_input = request.args.get("input")
 
-    # Filtering (case-insensitive)
-    if filter_user:
+    # Filtering (admins only for user filter)
+    if filter_user and g.user.get("role") == "admin":
         metadata = [m for m in metadata if m.get("user", "").lower() == filter_user.lower()]
     if filter_input:
         metadata = [
@@ -109,7 +116,7 @@ def delete_result(filename):
         os.remove(file_path)
 
         # Remove entry from metadata
-        metadata = load_metadata()
+        metadata = load_results()
         metadata = [m for m in metadata if m.get("output") != filename]
         with open(DATA_FILE, "w") as f:
             json.dump(metadata, f, indent=2)

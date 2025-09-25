@@ -37,19 +37,24 @@
     <button onclick="stressTest()">Run Stress Test</button>
   </div>
 
-  <!-- Uploaded files -->
-  <div class="card">
-    <div class="results-header">
-      <h2>Uploaded Files</h2>
-      <div class="filter-bar">
-        <input id="uploads-filter-input" type="text" placeholder="Search uploads...">
-        <button class="filter-btn" onclick="applyUploadsFilter()">Filter</button>
-      </div>
+<!-- Uploaded files -->
+<div class="card">
+  <div class="results-header">
+    <h2>Uploaded Files</h2>
+    <div class="results-actions">
+      <button id="clear-uploads-btn" class="danger-btn" onclick="clearUploads()">🗑 Delete All Uploads</button>
     </div>
-
-    <div id="uploads-list"></div>
-    <div id="uploads-pagination" class="pagination"></div>
   </div>
+
+  <div class="filter-bar">
+    <input id="uploads-filter-input" type="text" placeholder="Search uploads...">
+    <button class="filter-btn" onclick="applyUploadsFilter()">Filter</button>
+  </div>
+
+  <div id="uploads-list"></div>
+  <div id="uploads-pagination" class="pagination"></div>
+</div>
+
 
   <!-- Results -->
   <div class="card results-card">

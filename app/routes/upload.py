@@ -1,7 +1,13 @@
 import os
-from flask import Blueprint, request, jsonify, current_app, send_from_directory
+from flask import Blueprint, request, jsonify, current_app, send_from_directory, g
 from werkzeug.utils import secure_filename
 from app.utils.auth import token_required
+from app.utils.data_store import (
+    save_upload_metadata,
+    load_uploads,
+    prune_upload,
+    UPLOAD_DATA_FILE
+)
 from PIL import Image
 
 upload_bp = Blueprint("upload", __name__)
@@ -20,7 +26,6 @@ def upload_file():
         return jsonify({"error": "No file part in request"}), 400
 
     file = request.files["file"]
-
     if file.filename == "":
         return jsonify({"error": "No file selected"}), 400
 
@@ -33,7 +38,6 @@ def upload_file():
         save_path = os.path.join(upload_folder, filename)
         file.save(save_path)
 
-        # Gather metadata
         resolution = "Unknown"
         file_size = os.path.getsize(save_path)
         try:
@@ -42,12 +46,11 @@ def upload_file():
         except Exception:
             pass
 
+        record = save_upload_metadata(filename, resolution, file_size, g.user)
+
         return jsonify({
             "message": "File uploaded successfully",
-            "filename": filename,
-            "path": save_path,
-            "size_bytes": file_size,
-            "resolution": resolution
+            "metadata": record
         }), 201
 
     return jsonify({"error": "Invalid file type"}), 400
@@ -56,37 +59,20 @@ def upload_file():
 @upload_bp.route("/list", methods=["GET"])
 @token_required()
 def list_uploads():
-    upload_folder = current_app.config["UPLOAD_FOLDER"]
-    os.makedirs(upload_folder, exist_ok=True)
+    files = load_uploads()
 
-    files = []
-    for filename in os.listdir(upload_folder):
-        file_path = os.path.join(upload_folder, filename)
-        if os.path.isfile(file_path):
-            try:
-                with Image.open(file_path) as img:
-                    resolution = f"{img.width}x{img.height}"
-            except Exception:
-                resolution = "Unknown"
+    if g.role != "admin":
+        files = [f for f in files if f.get("user") == g.user.get("username")]
 
-            files.append({
-                "filename": filename,
-                "resolution": resolution,
-                "size_bytes": os.path.getsize(file_path)
-            })
-
-    # Query params
     page = int(request.args.get("page", 1))
     limit = int(request.args.get("limit", 10))
     sort = request.args.get("sort", "filename")
     order = request.args.get("order", "asc")
-    q = request.args.get("q")  # filter by substring in filename
+    q = request.args.get("q")
 
-    # Filtering
     if q:
         files = [f for f in files if q.lower() in f["filename"].lower()]
 
-    # Sorting
     reverse = (order == "desc")
     if sort == "resolution":
         def res_key(f):
@@ -101,7 +87,6 @@ def list_uploads():
     else:
         files.sort(key=lambda f: str(f.get(sort, "")).lower(), reverse=reverse)
 
-    # Pagination
     total = len(files)
     start = (page - 1) * limit
     end = start + limit
@@ -127,7 +112,7 @@ def get_upload(filename):
 
 
 @upload_bp.route("/<filename>", methods=["DELETE"])
-@token_required(role="admin")
+@token_required()
 def delete_upload(filename):
     upload_folder = current_app.config["UPLOAD_FOLDER"]
     file_path = os.path.join(upload_folder, filename)
@@ -135,8 +120,38 @@ def delete_upload(filename):
     if not os.path.exists(file_path):
         return jsonify({"error": "File not found"}), 404
 
+    uploads = load_uploads()
+    file_meta = next((f for f in uploads if f.get("filename") == filename), None)
+
+    if not file_meta:
+        return jsonify({"error": "Metadata not found"}), 404
+
+    if g.role != "admin" and file_meta.get("user") != g.user.get("username"):
+        return jsonify({"error": "Permission denied"}), 403
+
     try:
         os.remove(file_path)
+        prune_upload(filename)
         return jsonify({"message": f"File '{filename}' deleted successfully"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@upload_bp.route("/clear", methods=["DELETE"])
+@token_required(role="admin")
+def clear_uploads():
+    """Delete all uploaded files and metadata (admin only)."""
+    upload_folder = current_app.config["UPLOAD_FOLDER"]
+    os.makedirs(upload_folder, exist_ok=True)
+
+    # Delete all uploaded files
+    for filename in os.listdir(upload_folder):
+        file_path = os.path.join(upload_folder, filename)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+
+    # Delete metadata file
+    if os.path.exists(UPLOAD_DATA_FILE):
+        os.remove(UPLOAD_DATA_FILE)
+
+    return jsonify({"message": "All uploads and metadata cleared"}), 200

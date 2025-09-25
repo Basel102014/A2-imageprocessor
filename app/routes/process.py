@@ -3,7 +3,7 @@ from flask import Blueprint, request, jsonify, current_app, g
 from PIL import Image, ImageFilter
 import os
 from app.utils.auth import token_required
-from app.utils.data_store import save_metadata
+from app.utils.data_store import save_results_metadata
 
 process_bp = Blueprint("process", __name__)
 
@@ -33,7 +33,7 @@ def process_image():
     processed.save(out_path)
 
 
-    record = save_metadata(filename, out_name, g.user)
+    record = save_results_metadata(filename, out_name, g.user)
     return jsonify({
         "message": f"Processed {filename}",
         "result": out_name,
@@ -69,7 +69,7 @@ def stress_test():
     out_path = os.path.join(result_folder, out_name)
     img.save(out_path)
 
-    record = save_metadata(filename, out_name, g.user)
+    record = save_results_metadata(filename, out_name, g.user)
     return jsonify({
         "message": f"Stress test completed on {filename}",
         "result": out_name,

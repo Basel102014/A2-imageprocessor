@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  image-processor:
+    image: 901444280953.dkr.ecr.ap-southeast-2.amazonaws.com/baileyr-11326158:latest
+    ports:
+      - "80:8080"
+    restart: always
+    environment:
+      - FLASK_ENV=production
+      - LOG_LEVEL=info
+    volumes:
+      - app_data:/data
+      - app_logs:/logs
+
+volumes:
+  app_data:
+  app_logs:    

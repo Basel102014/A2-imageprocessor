@@ -3,7 +3,6 @@
 {% block title %}Dashboard - Image Processor{% endblock %}
 
 {% block content %}
-
 <div class="container">
   <div class="top-bar">
     <h1>Image Processor Dashboard</h1>
@@ -37,24 +36,24 @@
     <button onclick="stressTest()">Run Stress Test</button>
   </div>
 
-<!-- Uploaded files -->
-<div class="card">
-  <div class="results-header">
-    <h2>Uploaded Files</h2>
-    <div class="results-actions">
-      <button id="clear-uploads-btn" class="danger-btn" onclick="clearUploads()">🗑 Delete All Uploads</button>
+  <!-- Uploaded files -->
+  <div class="card">
+    <div class="results-header">
+      <h2>Uploaded Files</h2>
+      <div class="results-actions">
+        <button id="settings-btn" onclick="openSettings()">⚙ Settings</button>
+        <button id="clear-uploads-btn" class="danger-btn" onclick="clearUploads()">🗑 Delete All Uploads</button>
+      </div>
     </div>
+
+    <div class="filter-bar">
+      <input id="uploads-filter-input" type="text" placeholder="Search uploads...">
+      <button class="filter-btn" onclick="applyUploadsFilter()">Filter</button>
+    </div>
+
+    <div id="uploads-list"></div>
+    <div id="uploads-pagination" class="pagination"></div>
   </div>
-
-  <div class="filter-bar">
-    <input id="uploads-filter-input" type="text" placeholder="Search uploads...">
-    <button class="filter-btn" onclick="applyUploadsFilter()">Filter</button>
-  </div>
-
-  <div id="uploads-list"></div>
-  <div id="uploads-pagination" class="pagination"></div>
-</div>
-
 
   <!-- Results -->
   <div class="card results-card">
@@ -77,7 +76,28 @@
   </div>
 </div>
 
-<script>
-  document.addEventListener("DOMContentLoaded", populateFileDropdown);
-</script>
+<!-- Settings Modal -->
+<div id="settings-modal" class="modal">
+  <div class="modal-content">
+    <h2>Processing Settings</h2>
+    <label>Rotate (degrees): <input type="number" id="rotate" value="0"></label><br>
+    <label>Blur (radius): <input type="number" id="blur" value="0" step="0.5"></label><br>
+    <label>Upscale factor: <input type="number" id="upscale" value="1" step="0.1" min="1"></label><br>
+    <label>Resize width: <input type="number" id="resize-width" placeholder="auto"></label><br>
+    <label>Resize height: <input type="number" id="resize-height" placeholder="auto"></label><br>
+    <label><input type="checkbox" id="grayscale"> Grayscale</label><br>
+    <label>Flip: 
+      <select id="flip">
+        <option value="">None</option>
+        <option value="horizontal">Horizontal</option>
+        <option value="vertical">Vertical</option>
+      </select>
+    </label><br><br>
+    <button onclick="saveSettings()">Save</button>
+    <button onclick="closeSettings()">Close</button>
+  </div>
+</div>
+
+<!-- External JavaScript -->
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
 {% endblock %}

@@ -1,9 +1,14 @@
+/* ---------------- Base ---------------- */
 body {
   font-family: Arial, sans-serif;
   margin: 0;
   padding: 0;
   background: #252525;
   color: #ffffff;
+}
+
+h1, h2 {
+  margin-top: 0;
 }
 
 header {
@@ -22,11 +27,7 @@ header {
   box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 
-h1, h2 {
-  margin-top: 0;
-}
-
-/* Buttons */
+/* ---------------- Buttons ---------------- */
 button {
   background: #641d2f;
   border: none;
@@ -41,12 +42,31 @@ button:hover {
   background: #bd3759;
 }
 
-/* Inputs */
-input[type="file"], 
-input[type="text"], 
-input[type="password"], 
+.danger-btn {
+  background: #8b1e1e;
+}
+
+.danger-btn:hover {
+  background: #c62828;
+}
+
+.logout-btn {
+  background: #444;
+  padding: 0.6rem 1rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.logout-btn:hover {
+  background: #641d2f;
+}
+
+/* ---------------- Inputs ---------------- */
+input[type="file"],
+input[type="text"],
+input[type="password"],
 input[type="email"],
-input[type="number"], 
+input[type="number"],
 select {
   padding: 0.6rem;
   margin: 0.5em 0;
@@ -57,7 +77,7 @@ select {
   color: #eee;
 }
 
-/* Card layout */
+/* ---------------- Card Layout ---------------- */
 .card {
   padding: 1.5rem;
   margin-bottom: 1.5rem;
@@ -66,22 +86,7 @@ select {
   box-shadow: 0 2px 6px rgba(0,0,0,0.2);
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.card-header h2 {
-  margin: 0;
-}
-
-/* Results card extras */
-.results-card {
-  padding: 1.5rem;
-}
-
+.card-header,
 .results-header {
   display: flex;
   justify-content: space-between;
@@ -89,22 +94,12 @@ select {
   margin-bottom: 1rem;
 }
 
-.results-actions .danger-btn {
-  background: #8b1e1e;
-  color: #fff;
-  padding: 0.5em 1em;
-  border-radius: 4px;
-  border: none;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: background 0.2s;
+.card-header h2,
+.results-header h2 {
+  margin: 0;
 }
 
-.results-actions .danger-btn:hover {
-  background: #c62828;
-}
-
-/* Filter bar */
+/* ---------------- Filter Bar ---------------- */
 .filter-bar {
   display: flex;
   gap: 10px;
@@ -113,11 +108,6 @@ select {
 
 .filter-bar input {
   flex: 1;
-  padding: 0.6rem;
-  border-radius: 4px;
-  border: 1px solid #444;
-  background-color: #1f1f1f;
-  color: #eee;
 }
 
 .filter-bar .filter-btn {
@@ -134,7 +124,7 @@ select {
   background: #641d2f;
 }
 
-/* Results table */
+/* ---------------- Results Table ---------------- */
 .results-table {
   width: 100%;
   border-collapse: collapse;
@@ -179,7 +169,7 @@ select {
   box-shadow: 0 0 6px rgba(0,0,0,0.5);
 }
 
-/* Pagination */
+/* ---------------- Pagination ---------------- */
 .pagination {
   margin-top: 15px;
   text-align: center;
@@ -204,7 +194,7 @@ select {
   background-color: #555;
 }
 
-/* Divider */
+/* ---------------- Divider ---------------- */
 .divider {
   border: 0;
   height: 1px;
@@ -212,7 +202,7 @@ select {
   margin: 2rem 0;
 }
 
-/* Thumbnails */
+/* ---------------- Thumbnails ---------------- */
 .thumbnail {
   max-width: 80px;
   max-height: 80px;
@@ -227,7 +217,7 @@ select {
   border-color: #641d2f;
 }
 
-/* Spinner */
+/* ---------------- Spinner ---------------- */
 #spinner {
   display: none;
   position: fixed;
@@ -252,7 +242,7 @@ select {
   100% { transform: rotate(360deg); }
 }
 
-/* Login page */
+/* ---------------- Login Page ---------------- */
 .login-container {
   max-width: 400px;
   margin: 6rem auto;
@@ -288,25 +278,14 @@ select {
   box-sizing: border-box;
 }
 
-/* Top bar (Dashboard + Logout) */
+/* ---------------- Top Bar ---------------- */
 .top-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.logout-btn {
-  background: #444;
-  padding: 0.6rem 1rem;
-  border-radius: 4px;
-  font-size: 0.9rem;
-}
-
-.logout-btn:hover {
-  background: #641d2f;
-}
-
-/* Toast notifications */
+/* ---------------- Toast ---------------- */
 #toast-container {
   position: fixed;
   bottom: 20px;
@@ -332,14 +311,47 @@ select {
   transform: translateY(0);
 }
 
-.toast.success {
-  background: #2e7d32; /* green */
+.toast.success { background: #2e7d32; } /* green */
+.toast.error   { background: #c62828; } /* red */
+.toast.info    { background: #1976d2; } /* blue */
+
+/* ---------------- Modal ---------------- */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 10000;
+  left: 0; top: 0;
+  width: 100%; height: 100%;
+  background-color: rgba(0,0,0,0.6);
+  justify-content: center;
+  align-items: center;
 }
 
-.toast.error {
-  background: #c62828; /* red */
+.modal-content {
+  background: #2c2c2c;
+  color: #eee;
+  padding: 2rem;
+  border-radius: 10px;
+  width: 400px;
+  max-width: 90%;
+  box-shadow: 0 0 15px rgba(0,0,0,0.5);
 }
 
-.toast.info {
-  background: #1976d2; /* blue */
+.modal-content h2 {
+  margin-top: 0;
+}
+
+.modal-content input,
+.modal-content select {
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  width: 100%;
+  border: 1px solid #444;
+  border-radius: 5px;
+  background: #1f1f1f;
+  color: #fff;
+}
+
+.modal-content button {
+  margin: 0.5rem 0.25rem;
 }

@@ -56,10 +56,13 @@ async function uploadFile(event) {
     });
     const data = await res.json();
 
-    showToast(`Uploaded: ${data.filename}`, "success");
-
-    await populateFileDropdown();
-    await viewUploads();
+    if (res.ok) {
+      showToast(`Uploaded: ${data.metadata.filename}`, "success");
+      await populateFileDropdown();
+      await viewUploads();
+    } else {
+      showToast("Error: " + (data.error || "Failed to upload"), "error");
+    }
   } finally {
     hideSpinner();
   }
@@ -105,19 +108,45 @@ async function deleteUpload(filename) {
     method: "DELETE",
     headers: { "Authorization": "Bearer " + getToken() }
   });
+  const data = await res.json();
   hideSpinner();
 
   if (res.ok) {
-    showToast(`Uploaded: ${data.filename}`, "deleted");
+    showToast(`Upload "${filename}" deleted`, "success");
     viewUploads();
     populateFileDropdown();
   } else {
-    const data = await res.json();
     showToast("Error: " + (data.error || "Failed to delete"), "error");
   }
 }
 
 // ---------------- Processing ----------------
+let processSettings = {};
+
+function openSettings() {
+  document.getElementById("settings-modal").style.display = "flex";
+}
+
+function closeSettings() {
+  document.getElementById("settings-modal").style.display = "none";
+}
+
+function saveSettings() {
+  processSettings = {
+    rotate: parseFloat(document.getElementById("rotate").value) || undefined,
+    blur: parseFloat(document.getElementById("blur").value) || undefined,
+    upscale: parseFloat(document.getElementById("upscale").value) > 1 ? parseFloat(document.getElementById("upscale").value) : undefined,
+    resize: {
+      width: parseInt(document.getElementById("resize-width").value) || undefined,
+      height: parseInt(document.getElementById("resize-height").value) || undefined
+    },
+    grayscale: document.getElementById("grayscale").checked,
+    flip: document.getElementById("flip").value || undefined
+  };
+  closeSettings();
+  showToast("Settings saved");
+}
+
 async function processUpload(filename) {
   showSpinner();
   const res = await fetch("/process/", {
@@ -126,13 +155,17 @@ async function processUpload(filename) {
       "Content-Type": "application/json",
       "Authorization": "Bearer " + getToken()
     },
-    body: JSON.stringify({ filename })
+    body: JSON.stringify({ filename, operations: processSettings })
   });
   const data = await res.json();
   hideSpinner();
 
-  showToast(`Processed: ${data.result}`, "success");
-  await viewResults(currentPage, sortColumn, sortDirection, currentFilter);
+  if (res.ok) {
+    showToast("Processed: " + data.result, "success");
+    await viewResults();
+  } else {
+    showToast("Error: " + (data.error || "Failed to process"), "error");
+  }
 }
 
 async function stressTest() {
@@ -152,8 +185,12 @@ async function stressTest() {
   const data = await res.json();
   hideSpinner();
 
-  showToast(`Stress Test Results: ${data.iterations} iterations on ${filename}`, "info");
-  await viewResults(currentPage, sortColumn, sortDirection, currentFilter);
+  if (res.ok) {
+    showToast(`Stress Test: ${data.iterations} iterations on ${filename}`, "info");
+    await viewResults(currentPage, sortColumn, sortDirection, currentFilter);
+  } else {
+    showToast("Error: " + (data.error || "Stress test failed"), "error");
+  }
 }
 
 // ---------------- Results ----------------
@@ -174,6 +211,10 @@ async function viewResults(page = 1, sort = sortColumn, order = sortDirection, f
   });
   const data = await res.json();
   hideSpinner();
+
+  if (!res.ok) {
+    return showToast("Error loading results: " + (data.error || "Unknown error"), "error");
+  }
 
   currentPage = data.page;
   totalPages = Math.ceil(data.total / resultsPerPage);
@@ -232,13 +273,13 @@ async function deleteResult(filename) {
     method: "DELETE",
     headers: { "Authorization": "Bearer " + getToken() }
   });
+  const data = await res.json();
   hideSpinner();
 
   if (res.ok) {
     showToast(`Result "${filename}" deleted`, "success");
     viewResults(currentPage, sortColumn, sortDirection, currentFilter);
   } else {
-    const data = await res.json();
     showToast("Error: " + (data.error || "Failed to delete"), "error");
   }
 }
@@ -298,6 +339,10 @@ async function viewUploads(page = 1, sort = uploadsSortColumn, order = uploadsSo
   });
   const data = await res.json();
   hideSpinner();
+
+  if (!res.ok) {
+    return showToast("Error loading uploads: " + (data.error || "Unknown error"), "error");
+  }
 
   currentUploadsPage = data.page;
   renderUploadsPage(data.results, data.total);
@@ -377,9 +422,9 @@ async function clearUploads() {
   });
 
   if (res.ok) {
-    showToast("All uploads deleted successfully.");
+    showToast("All uploads deleted successfully.", "success");
     viewUploads();
-    populateFileDropdown(); // refresh process/stress dropdowns
+    populateFileDropdown();
   } else {
     const data = await res.json();
     showToast("Error: " + (data.error || "Failed to delete uploads"), "error");

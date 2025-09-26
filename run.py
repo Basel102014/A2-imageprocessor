@@ -1,6 +1,7 @@
 from flask import Flask, redirect, url_for
 from authlib.integrations.flask_client import OAuth
 import os
+from app.services.secrets import get_secret
 
 print("[DEBUG] Starting application…")
 
@@ -18,7 +19,7 @@ app.secret_key = os.urandom(24)
 # --- Cognito Config ---
 COGNITO_USER_POOL_ID = "ap-southeast-2_Og65686Wi"
 COGNITO_CLIENT_ID = "60ueg8ts3d58d4vdod86vc95rl"
-COGNITO_CLIENT_SECRET = "3gtqge8jb0av1pv8161onf92s5prc5th7u43ad63ltne5014jno"
+COGNITO_CLIENT_SECRET = get_secret()
 
 # --- OAuth setup ---
 oauth = OAuth(app)

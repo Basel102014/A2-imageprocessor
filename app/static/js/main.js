@@ -215,7 +215,7 @@ function renderResultsPage(results) {
         <td>${r.user}</td>
         <td class="filename-cell" title="${r.input}">${r.input}</td>
         <td class="filename-cell" title="${r.output}">${r.output}</td>
-        <td>${new Date(r.timestamp).toLocaleString()}</td>
+        <td>${new Date(r.timestamp * 1000).toLocaleString()}</td>
         <td>
           <a href="/results/${r.output}" target="_blank">
             <img src="/results/${r.output}" alt="Processed" class="thumbnail">

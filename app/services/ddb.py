@@ -61,7 +61,7 @@ def save_result_metadata(input_file, output_file, user):
         "id": str(uuid.uuid4()),
         "input": input_file,
         "output": output_file,
-        "user": user.get("username"),
+        "user": user.get("preferred_username") or user.get("cognito:username"),
         "timestamp": int(time.time())
     }
     print(f"[DEBUG] Saving result metadata → {record}")

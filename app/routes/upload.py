@@ -1,6 +1,6 @@
 import os
 import tempfile
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, session
 from werkzeug.utils import secure_filename
 from app.utils.auth_helper import login_required
 from app.services import s3, ddb
@@ -58,7 +58,8 @@ def upload_file():
         print(f"[DEBUG] Uploaded file to S3 at key={s3_key}")
 
         # Save metadata in DynamoDB
-        record = ddb.save_upload_metadata(filename, resolution, file_size, g.user)
+        user = session.get("user", {})
+        record = ddb.save_upload_metadata(filename, resolution, file_size, user)
         record["s3_key"] = s3_key
         print(f"[DEBUG] Saved upload metadata to DynamoDB: {record}")
 
@@ -79,11 +80,15 @@ def list_uploads():
     files = ddb.load_uploads()
     print(f"[DEBUG] Loaded {len(files)} uploads from DynamoDB")
 
+    user = session.get("user", {})
+    role = "admin" if user.get("cognito:username") == "admin1" else "user"
+
     # Restrict to user unless admin
-    if g.role != "admin":
+    if role != "admin":
         before = len(files)
-        files = [f for f in files if f.get("user") == g.user.get("username")]
-        print(f"[DEBUG] Filtered uploads for {g.user.get('username')}: {before} → {len(files)}")
+        username = user.get("cognito:username")
+        files = [f for f in files if f.get("user") == username]
+        print(f"[DEBUG] Filtered uploads for {username}: {before} → {len(files)}")
 
     # Pagination/sorting (basic version)
     page = int(request.args.get("page", 1))
@@ -125,8 +130,11 @@ def delete_upload(filename):
         print("[DEBUG] Metadata not found")
         return jsonify({"error": "Metadata not found"}), 404
 
-    if g.role != "admin" and file_meta.get("user") != g.user.get("username"):
-        print(f"[DEBUG] Permission denied for user {g.user.get('username')}")
+    user = session.get("user", {})
+    role = "admin" if user.get("cognito:username") == "admin1" else "user"
+
+    if role != "admin" and file_meta.get("user") != user.get("cognito:username"):
+        print(f"[DEBUG] Permission denied for user {user.get('cognito:username')}")
         return jsonify({"error": "Permission denied"}), 403
 
     try:

@@ -4,7 +4,7 @@ import multiprocessing
 import tempfile
 import shutil
 import os
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, session
 from PIL import Image, ImageFilter, ImageOps
 from app.utils.auth_helper import login_required
 from app.services import s3, ddb
@@ -70,7 +70,12 @@ def process_image():
         s3_key = f"results/{out_name}"
         s3.upload_file_to_s3(tmp_out, s3_key)
 
-        record = ddb.save_result_metadata(filename, out_name, g.user)
+        # Save metadata with user info from session
+        user = session.get("user", {})
+        record = ddb.save_result_metadata(filename, out_name, {
+            "username": user.get("cognito:username"),
+            "role": "admin" if user.get("cognito:username") == "admin1" else "user"
+        })
         record["s3_key"] = s3_key
 
         return jsonify({
@@ -137,6 +142,8 @@ def stress_test():
             local_out = os.path.join(tmp_dir, out)
             s3_key = f"results/{out}"
             s3.upload_file_to_s3(local_out, s3_key)
+
+            # Mark results created by stress test explicitly
             ddb.save_result_metadata(filename, out, {"username": "stress-test", "role": "system"})
 
         return jsonify({

@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, g
+from flask import Blueprint, jsonify, request, session
 from app.utils.auth_helper import login_required
 from app.services import s3, ddb
 
@@ -36,11 +36,15 @@ def get_metadata():
     metadata = ddb.load_results()
     print(f"[DEBUG] Loaded metadata count: {len(metadata)}")
 
+    user = session.get("user", {})
+    role = "admin" if user.get("cognito:username") == "admin1" else "user"
+
     # Role-based filtering
-    if g.user.get("role") != "admin":
+    if role != "admin":
         before = len(metadata)
-        metadata = [m for m in metadata if m.get("user") == g.user.get("username")]
-        print(f"[DEBUG] User '{g.user.get('username')}' filtered metadata count: {before} → {len(metadata)}")
+        username = user.get("cognito:username")
+        metadata = [m for m in metadata if m.get("user") == username]
+        print(f"[DEBUG] User '{username}' filtered metadata count: {before} → {len(metadata)}")
 
     # Query params
     page = int(request.args.get("page", 1))
@@ -49,10 +53,11 @@ def get_metadata():
     order = request.args.get("order", "desc")
     filter_user = request.args.get("user")
     filter_input = request.args.get("input")
-    print(f"[DEBUG] Query params → page={page}, limit={limit}, sort={sort}, order={order}, filter_user={filter_user}, filter_input={filter_input}")
+    print(f"[DEBUG] Query params → page={page}, limit={limit}, sort={sort}, order={order}, "
+          f"filter_user={filter_user}, filter_input={filter_input}")
 
     # Filtering
-    if filter_user and g.user.get("role") == "admin":
+    if filter_user and role == "admin":
         before = len(metadata)
         metadata = [m for m in metadata if m.get("user", "").lower() == filter_user.lower()]
         print(f"[DEBUG] Filtered by user={filter_user}: {before} → {len(metadata)}")
@@ -109,6 +114,7 @@ def clear_results():
 def delete_result(filename):
     """Delete a specific result file and prune metadata."""
     print(f"[DEBUG] /results/{filename} (DELETE) hit")
+
     try:
         s3_key = f"results/{filename}"
         s3.delete_file_from_s3(s3_key)

@@ -7,10 +7,5 @@ def login_required(f):
         user = session.get("user")
         if not user:
             return redirect(url_for("auth.login"))
-
-        # Attach user info to g
-        g.user = user
-        g.role = "admin" if user.get("cognito:username") == "admin1" else "user"
-
         return f(*args, **kwargs)
     return decorated_function

@@ -1,12 +1,16 @@
 from urllib.parse import urlencode
 from flask import Blueprint, redirect, render_template, url_for, session, current_app, request
+import os
 
 auth_bp = Blueprint("auth", __name__)
 
 @auth_bp.route("/login")
 def login():
-    """Always start Cognito login flow (force login screen)"""
-    redirect_uri = f"{request.scheme}://{request.host}/auth/authorize"
+    if os.environ.get("FLASK_ENV") == "production":
+        redirect_uri = "https://n11326158.cab432.com/auth/authorize"
+    else:
+        redirect_uri = f"{request.scheme}://{request.host}/auth/authorize"
+
     print(f"[DEBUG] Using redirect URI: {redirect_uri}")
     return current_app.oauth.oidc.authorize_redirect(
         redirect_uri,
@@ -56,21 +60,24 @@ def authorize():
 
 @auth_bp.route("/logout")
 def logout():
-    # Clear local session
     session.clear()
 
-    # Hosted UI base from OIDC metadata
+    # Hosted UI base
     authz = current_app.oauth.oidc.server_metadata.get("authorization_endpoint")
     hosted_base = authz.split("/oauth2/authorize")[0] if authz else \
         "https://ap-southeast-2og65686wi.auth.ap-southeast-2.amazoncognito.com"
 
     client_id = getattr(current_app.oauth.oidc, "client_id", None)
-    post_logout = f"{request.scheme}://{request.host}/auth/"
+
+    if os.environ.get("FLASK_ENV") == "production":
+        post_logout = "https://n11326158.cab432.com/auth/"
+    else:
+        post_logout = f"{request.scheme}://{request.host}/auth/"
 
     params = {"client_id": client_id, "logout_uri": post_logout}
     logout_url = f"{hosted_base}/logout?{urlencode(params)}"
-    print("[DEBUG] Cognito logout URL:", logout_url)
 
+    print("[DEBUG] Cognito logout URL:", logout_url)
     return redirect(logout_url)
 
 @auth_bp.route("/")

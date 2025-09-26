@@ -8,6 +8,9 @@ REPO="baileyr-11326158"
 IMAGE_NAME="image-processor"
 TAG="latest"
 
+echo "Updating domain..."
+./scripts/route53-update.sh
+
 echo "Logging into ECR..."
 aws ecr get-login-password \
   --region $REGION \

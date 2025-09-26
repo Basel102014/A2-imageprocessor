@@ -5,10 +5,16 @@
 {% block content %}
 <body data-role="{{ session['user'].get('role', 'user') }}">
 <div class="container">
-  <div class="top-bar">
-    <h1>Image Processor Dashboard</h1>
-    <button class="logout-btn" onclick="logout()">Logout</button>
+  <div class="container">
+    <div class="top-bar">
+      <h1>Image Processor Dashboard</h1>
+      <div class="user-info">
+        {{ session['user'].get('cognito:username', 'Unknown') }}
+      </div>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
   </div>
+
 
   <hr class="divider">
 

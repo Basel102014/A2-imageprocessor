@@ -4,8 +4,7 @@ auth_bp = Blueprint("auth", __name__)
 
 @auth_bp.route("/login")
 def login():
-    """Start Cognito login flow"""
-    # Dynamically build the redirect URI from the current host
+    """Start Cognito login flow immediately"""
     redirect_uri = f"{request.scheme}://{request.host}/auth/authorize"
     print(f"[DEBUG] Using redirect URI: {redirect_uri}")
     return current_app.oauth.oidc.authorize_redirect(redirect_uri)
@@ -19,19 +18,18 @@ def authorize():
     print("[DEBUG] Token:", token)
     print("[DEBUG] User info:", user)
     session["user"] = user
+    session["user"]["role"] = "admin" if user.get("cognito:username") == "admin1" else "user"
     return redirect(url_for("client.dashboard"))
 
 
 @auth_bp.route("/logout")
 def logout():
-    """Clear session + logout"""
+    """Clear session + logout, then go straight to Cognito login again"""
     session.clear()
-    return redirect(url_for("auth.index"))
+    return redirect(url_for("auth.login"))
 
 
 @auth_bp.route("/")
 def index():
-    user = session.get("user")
-    if user:
-        return f"✅ Logged in as {user['email']} <a href='/auth/logout'>Logout</a>"
-    return "❌ Not logged in. <a href='/auth/login'>Login</a>"
+    """Shortcut root → always redirect to login flow"""
+    return redirect(url_for("auth.login"))

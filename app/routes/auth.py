@@ -73,9 +73,6 @@ def logout():
 
     return redirect(logout_url)
 
-
-
-
 @auth_bp.route("/")
 def index():
     """Show a simple login page"""
@@ -85,7 +82,7 @@ def index():
       <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
         <h2>Welcome</h2>
         <a href='/auth/login'>
-          <button style="padding: 10px 20px; font-size: 16px;">Login</button>
+          <button style="padding: 10px 20px; font-size: 16px;">Login with Cognito</button>
         </a>
       </body>
     </html>

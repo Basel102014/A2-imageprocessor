@@ -1,37 +1,16 @@
-# Use this code snippet in your app.
-# If you need more information about configurations
-# or implementing the sample code, visit the AWS docs:
-# https://aws.amazon.com/developer/language/python/
-
-import boto3
-import json
+import boto3, json
 from botocore.exceptions import ClientError
 
-
 def get_secret():
-
     secret_name = "n11326158-secret-key"
     region_name = "ap-southeast-2"
 
-    # Create a Secrets Manager client
-    session = boto3.session.Session()
-    client = session.client(
-        service_name='secretsmanager',
-        region_name=region_name
-    )
-
+    client = boto3.client("secretsmanager", region_name=region_name)
     try:
-        get_secret_value_response = client.get_secret_value(
-            SecretId=secret_name
-        )
+        get_secret_value_response = client.get_secret_value(SecretId=secret_name)
+        secret_str = get_secret_value_response["SecretString"]
+        secret_dict = json.loads(secret_str)
+        return secret_dict["COGNITO_CLIENT_SECRET"] 
     except ClientError as e:
-        # For a list of exceptions thrown, see
-        # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
-        raise e
-
-    secret = get_secret_value_response["SecretString"]
-    try:
-        return json.loads(secret)  # if JSON
-    except json.JSONDecodeError:
-        return secret  # plain string
-
+        print("[DEBUG] Failed to retrieve secret:", e)
+        return None

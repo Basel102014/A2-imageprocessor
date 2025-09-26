@@ -20,6 +20,7 @@ app.secret_key = os.urandom(24)
 COGNITO_USER_POOL_ID = "ap-southeast-2_Og65686Wi"
 COGNITO_CLIENT_ID = "60ueg8ts3d58d4vdod86vc95rl"
 COGNITO_CLIENT_SECRET = get_secret()
+print("[DEBUG] Loaded Cognito secret:", repr(COGNITO_CLIENT_SECRET))
 
 # --- OAuth setup ---
 oauth = OAuth(app)

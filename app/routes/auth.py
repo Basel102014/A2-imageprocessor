@@ -1,14 +1,17 @@
-from flask import Blueprint, redirect, url_for, session, current_app, request
+from urllib.parse import urlencode
+from flask import Blueprint, redirect, render_template, url_for, session, current_app, request
 
 auth_bp = Blueprint("auth", __name__)
 
 @auth_bp.route("/login")
 def login():
-    """Start Cognito login flow immediately"""
+    """Always start Cognito login flow (force login screen)"""
     redirect_uri = f"{request.scheme}://{request.host}/auth/authorize"
     print(f"[DEBUG] Using redirect URI: {redirect_uri}")
-    return current_app.oauth.oidc.authorize_redirect(redirect_uri)
-
+    return current_app.oauth.oidc.authorize_redirect(
+        redirect_uri,
+        prompt="login"
+    )
 
 @auth_bp.route("/authorize")
 def authorize():
@@ -51,16 +54,39 @@ def authorize():
 
     return redirect(url_for("client.dashboard"))
 
-
-
 @auth_bp.route("/logout")
 def logout():
-    """Clear session + logout, then go straight to Cognito login again"""
+    # Clear local session
     session.clear()
-    return redirect(url_for("auth.login"))
+
+    # Hosted UI base from OIDC metadata
+    authz = current_app.oauth.oidc.server_metadata.get("authorization_endpoint")
+    hosted_base = authz.split("/oauth2/authorize")[0] if authz else \
+        "https://ap-southeast-2og65686wi.auth.ap-southeast-2.amazoncognito.com"
+
+    client_id = getattr(current_app.oauth.oidc, "client_id", None)
+    post_logout = f"{request.scheme}://{request.host}/auth/"
+
+    params = {"client_id": client_id, "logout_uri": post_logout}
+    logout_url = f"{hosted_base}/logout?{urlencode(params)}"
+    print("[DEBUG] Cognito logout URL:", logout_url)
+
+    return redirect(logout_url)
+
+
 
 
 @auth_bp.route("/")
 def index():
-    """Shortcut root → always redirect to login flow"""
-    return redirect(url_for("auth.login"))
+    """Show a simple login page"""
+    return """
+    <html>
+      <head><title>Login</title></head>
+      <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
+        <h2>Welcome</h2>
+        <a href='/auth/login'>
+          <button style="padding: 10px 20px; font-size: 16px;">Login</button>
+        </a>
+      </body>
+    </html>
+    """

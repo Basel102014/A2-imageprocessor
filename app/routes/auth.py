@@ -14,12 +14,43 @@ def login():
 def authorize():
     """Handle callback from Cognito"""
     token = current_app.oauth.oidc.authorize_access_token()
-    user = token.get("userinfo")
-    print("[DEBUG] Token:", token)
-    print("[DEBUG] User info:", user)
+    user = token.get("userinfo") or {}
+
+    # Also decode the ID token to extract Cognito groups
+    import base64, json
+    def _decode_jwt(jwt):
+        try:
+            payload = jwt.split(".")[1]
+            payload += "=" * (-len(payload) % 4)  # fix padding
+            return json.loads(base64.urlsafe_b64decode(payload.encode()).decode())
+        except Exception:
+            return {}
+
+    id_token = token.get("id_token")
+    claims = _decode_jwt(id_token) if id_token else {}
+
+    groups = claims.get("cognito:groups", [])
+    role = "admin" if any(g.lower() == "admin" for g in groups) else "user"
+
+    username = (
+        user.get("cognito:username")
+        or user.get("preferred_username")
+        or user.get("email", "").split("@")[0]
+        or "unknown"
+    )
+
+    user["username"] = username
+    user["role"] = role
     session["user"] = user
-    session["user"]["role"] = "admin" if user.get("cognito:username") == "admin1" else "user"
+
+    print("[DEBUG] /auth/authorize → user authenticated")
+    print("[DEBUG] Groups:", groups)
+    print("[DEBUG] Username:", username)
+    print("[DEBUG] Role:", role)
+    print("[DEBUG] Session user:", session["user"])
+
     return redirect(url_for("client.dashboard"))
+
 
 
 @auth_bp.route("/logout")

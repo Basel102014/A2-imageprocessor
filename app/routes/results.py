@@ -1,12 +1,12 @@
 from flask import Blueprint, jsonify, request, g
-from app.utils.auth_helper import token_required
+from app.utils.auth_helper import login_required
 from app.services import s3, ddb
 
 results_bp = Blueprint("results", __name__)
 
 
 @results_bp.route("/", methods=["GET"])
-@token_required()
+@login_required
 def list_results():
     """List all result files stored in S3."""
     print("[DEBUG] /results/ (GET) hit → listing results from S3")
@@ -29,7 +29,7 @@ def get_result(filename):
 
 
 @results_bp.route("/metadata", methods=["GET"])
-@token_required()
+@login_required
 def get_metadata():
     """Get paginated, sortable, and filterable result metadata."""
     print("[DEBUG] /results/metadata (GET) hit")
@@ -89,7 +89,7 @@ def get_metadata():
 
 
 @results_bp.route("/clear", methods=["DELETE"])
-@token_required(role="admin")
+@login_required
 def clear_results():
     """Delete all result files and metadata."""
     print("[DEBUG] /results/clear (DELETE) hit")
@@ -105,7 +105,7 @@ def clear_results():
 
 
 @results_bp.route("/<filename>", methods=["DELETE"])
-@token_required(role="admin")
+@login_required
 def delete_result(filename):
     """Delete a specific result file and prune metadata."""
     print(f"[DEBUG] /results/{filename} (DELETE) hit")

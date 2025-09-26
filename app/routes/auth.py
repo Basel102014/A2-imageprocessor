@@ -1,36 +1,37 @@
-from flask import Blueprint, request, jsonify
-from app.services.jwt_handler import encode_jwt
+from flask import Blueprint, redirect, url_for, session, current_app, request
 
 auth_bp = Blueprint("auth", __name__)
 
-USERS = {
-    "admin": {"password": "admin", "role": "admin"},
-    "bailey": {"password": "qut", "role": "user"}
-}
-
-@auth_bp.route("/login", methods=["POST"])
+@auth_bp.route("/login")
 def login():
-    print("[DEBUG] /login route hit")  # Entry point
-    data = request.get_json()
-    print(f"[DEBUG] Incoming data: {data}")
+    """Start Cognito login flow"""
+    # Dynamically build the redirect URI from the current host
+    redirect_uri = f"{request.scheme}://{request.host}/auth/authorize"
+    print(f"[DEBUG] Using redirect URI: {redirect_uri}")
+    return current_app.oauth.oidc.authorize_redirect(redirect_uri)
 
-    username = data.get("username")
-    password = data.get("password")
-    print(f"[DEBUG] Username: {username}, Password: {password}")
 
-    if username in USERS:
-        print(f"[DEBUG] Found user '{username}' in USERS")
-        if USERS[username]["password"] == password:
-            print("[DEBUG] Password match successful")
-            role = USERS[username]["role"]
-            print(f"[DEBUG] Role: {role}")
-            token = encode_jwt(username, role)
-            print(f"[DEBUG] Generated JWT: {token}")
-            return jsonify({"token": token})
-        else:
-            print("[DEBUG] Password mismatch")
-    else:
-        print(f"[DEBUG] Username '{username}' not found in USERS")
+@auth_bp.route("/authorize")
+def authorize():
+    """Handle callback from Cognito"""
+    token = current_app.oauth.oidc.authorize_access_token()
+    user = token.get("userinfo")
+    print("[DEBUG] Token:", token)
+    print("[DEBUG] User info:", user)
+    session["user"] = user
+    return redirect(url_for("client.dashboard"))
 
-    print("[DEBUG] Returning 401 Invalid credentials")
-    return jsonify({"error": "Invalid credentials"}), 401
+
+@auth_bp.route("/logout")
+def logout():
+    """Clear session + logout"""
+    session.clear()
+    return redirect(url_for("auth.index"))
+
+
+@auth_bp.route("/")
+def index():
+    user = session.get("user")
+    if user:
+        return f"✅ Logged in as {user['email']} <a href='/auth/logout'>Logout</a>"
+    return "❌ Not logged in. <a href='/auth/login'>Login</a>"

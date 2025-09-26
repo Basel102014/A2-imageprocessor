@@ -2,7 +2,7 @@ import os
 import tempfile
 from flask import Blueprint, request, jsonify, g
 from werkzeug.utils import secure_filename
-from app.utils.auth_helper import token_required
+from app.utils.auth_helper import login_required
 from app.services import s3, ddb
 from PIL import Image
 
@@ -19,7 +19,7 @@ def allowed_file(filename):
 
 # ---------- Upload ----------
 @upload_bp.route("/", methods=["POST"])
-@token_required()
+@login_required
 def upload_file():
     print("[DEBUG] /upload (POST) hit → handling file upload")
     if "file" not in request.files:
@@ -73,7 +73,7 @@ def upload_file():
 
 # ---------- List ----------
 @upload_bp.route("/list", methods=["GET"])
-@token_required()
+@login_required
 def list_uploads():
     print("[DEBUG] /upload/list (GET) hit")
     files = ddb.load_uploads()
@@ -113,7 +113,7 @@ def get_upload(filename):
 
 # ---------- Delete ----------
 @upload_bp.route("/<filename>", methods=["DELETE"])
-@token_required()
+@login_required
 def delete_upload(filename):
     print(f"[DEBUG] /upload/{filename} (DELETE) hit")
 
@@ -143,7 +143,7 @@ def delete_upload(filename):
 
 # ---------- Clear ----------
 @upload_bp.route("/clear", methods=["DELETE"])
-@token_required(role="admin")
+@login_required
 def clear_uploads():
     print("[DEBUG] /upload/clear (DELETE) hit")
     try:

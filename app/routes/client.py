@@ -1,20 +1,10 @@
-from flask import Blueprint, render_template, redirect, url_for, request
-import jwt
-from flask import current_app
+from flask import Blueprint, redirect, render_template, session, url_for
+from app.utils.auth_helper import login_required
 
 client_bp = Blueprint("client", __name__)
 
-@client_bp.route("/login", methods=["GET"])
-def login_page():
-    print("[DEBUG] /login page route hit (GET)")
-    return render_template("login.html")
-
-@client_bp.route("/", methods=["GET"])
-def root_redirect():
-    print("[DEBUG] Root path hit → redirecting to /login")
-    return redirect(url_for("client.login_page"))
-
-@client_bp.route("/dashboard", methods=["GET"])
+@client_bp.route("/dashboard")
+@login_required
 def dashboard():
-    print("[DEBUG] /dashboard route hit (GET)")
-    return render_template("index.html")
+    user = session.get("user")
+    return render_template("index.html", user=user)

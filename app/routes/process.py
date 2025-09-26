@@ -6,7 +6,7 @@ import shutil
 import os
 from flask import Blueprint, request, jsonify, g
 from PIL import Image, ImageFilter, ImageOps
-from app.utils.auth_helper import token_required
+from app.utils.auth_helper import login_required
 from app.services import s3, ddb
 
 process_bp = Blueprint("process", __name__)
@@ -21,7 +21,7 @@ def unique_filename(prefix, original_name):
 
 # ---------------- Normal Processing ----------------
 @process_bp.route("/", methods=["POST"])
-@token_required()
+@login_required
 def process_image():
     print("[DEBUG] /process route hit (POST)")
     data = request.json
@@ -103,7 +103,7 @@ def worker_task(local_in, duration, local_out):
 
 
 @process_bp.route("/stress", methods=["POST"])
-@token_required()
+@login_required
 def stress_test():
     print("[DEBUG] /stress route hit (POST)")
     data = request.json

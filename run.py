@@ -1,52 +1,62 @@
-from flask import Flask, redirect, url_for, session
+from flask import Flask, redirect, url_for
 from authlib.integrations.flask_client import OAuth
 import os
 
-app = Flask(__name__)
+print("[DEBUG] Starting application…")
+
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, "app", "templates"),
+    static_folder=os.path.join(BASE_DIR, "app", "static")
+)
+
 app.secret_key = os.urandom(24)
 
+
 # --- Cognito Config ---
-COGNITO_DOMAIN = "https://ap-southeast-2og65686wi.auth.ap-southeast-2.amazoncognito.com"
 COGNITO_USER_POOL_ID = "ap-southeast-2_Og65686Wi"
 COGNITO_CLIENT_ID = "60ueg8ts3d58d4vdod86vc95rl"
 COGNITO_CLIENT_SECRET = "3gtqge8jb0av1pv8161onf92s5prc5th7u43ad63ltne5014jno"
-COGNITO_REDIRECT_URI = "http://localhost:8080/authorize"
 
 # --- OAuth setup ---
 oauth = OAuth(app)
+app.oauth = oauth  # attach to Flask so blueprints can access with current_app.oauth
+
 oauth.register(
     name="oidc",
     client_id=COGNITO_CLIENT_ID,
     client_secret=COGNITO_CLIENT_SECRET,
-    server_metadata_url=f"https://cognito-idp.ap-southeast-2.amazonaws.com/{COGNITO_USER_POOL_ID}/.well-known/openid-configuration",
+    server_metadata_url=(
+        f"https://cognito-idp.ap-southeast-2.amazonaws.com/"
+        f"{COGNITO_USER_POOL_ID}/.well-known/openid-configuration"
+    ),
     client_kwargs={"scope": "openid profile email"},
 )
+print("[DEBUG] Cognito OAuth provider registered")
 
-# --- Routes ---
+# --- Root redirect ---
 @app.route("/")
-def index():
-    user = session.get("user")
-    if user:
-        return f"✅ Logged in as {user['email']}"
-    return "❌ Not logged in. <a href='/login'>Login</a>"
+def root_redirect():
+    print("[DEBUG] Root path hit → redirecting to /auth/")
+    return redirect(url_for("auth.index"))
 
-@app.route("/login")
-def login():
-    return oauth.oidc.authorize_redirect(COGNITO_REDIRECT_URI)
+# --- Register blueprints ---
+from app.routes.auth import auth_bp
+from app.routes.client import client_bp
+from app.routes.upload import upload_bp
+from app.routes.process import process_bp
+from app.routes.results import results_bp
 
-@app.route("/authorize")
-def authorize():
-    token = oauth.oidc.authorize_access_token()
-    user = token.get("userinfo")
-    print("[DEBUG] Token:", token)
-    print("[DEBUG] User info:", user)
-    session["user"] = user
-    return redirect(url_for("index"))
+app.register_blueprint(auth_bp, url_prefix="/auth")
+app.register_blueprint(client_bp)
+app.register_blueprint(upload_bp, url_prefix="/upload")
+app.register_blueprint(process_bp, url_prefix="/process")
+app.register_blueprint(results_bp, url_prefix="/results")
+print("[DEBUG] Registered blueprints: auth, client, upload, process, results")
 
-@app.route("/logout")
-def logout():
-    session.clear()
-    return "✅ Logged out. <a href='/'>Back to home</a>"
-
+# --- Run app ---
 if __name__ == "__main__":
+    print("[DEBUG] __main__ triggered → running app on host=0.0.0.0, port=8080, debug=True")
     app.run(host="0.0.0.0", port=8080, debug=True)

@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request, g
-from app.utils.auth import token_required
+from app.utils.auth_helper import token_required
 from app.services import s3, ddb
 
 results_bp = Blueprint("results", __name__)

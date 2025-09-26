@@ -2,7 +2,7 @@ import os
 import tempfile
 from flask import Blueprint, request, jsonify, g
 from werkzeug.utils import secure_filename
-from app.utils.auth import token_required
+from app.utils.auth_helper import token_required
 from app.services import s3, ddb
 from PIL import Image
 

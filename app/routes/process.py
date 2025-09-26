@@ -6,7 +6,7 @@ import shutil
 import os
 from flask import Blueprint, request, jsonify, g
 from PIL import Image, ImageFilter, ImageOps
-from app.utils.auth import token_required
+from app.utils.auth_helper import token_required
 from app.services import s3, ddb
 
 process_bp = Blueprint("process", __name__)

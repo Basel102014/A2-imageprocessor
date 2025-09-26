@@ -90,13 +90,44 @@ def list_uploads():
         files = [f for f in files if f.get("user") == username]
         print(f"[DEBUG] Filtered uploads for {username}: {before} → {len(files)}")
 
-    # Pagination
+    # Query params
     page = int(request.args.get("page", 1))
     limit = int(request.args.get("limit", 10))
+    sort = request.args.get("sort", "timestamp")
+    order = request.args.get("order", "desc")
+    filter_user = request.args.get("user")
+    filter_input = request.args.get("q")
+    print(f"[DEBUG] Query params → page={page}, limit={limit}, sort={sort}, order={order}, "
+          f"filter_user={filter_user}, filter_input={filter_input}")
+
+    # Filtering
+    if filter_user and role == "admin":
+        before = len(files)
+        files = [f for f in files if f.get("user", "").lower() == filter_user.lower()]
+        print(f"[DEBUG] Filtered by user={filter_user}: {before} → {len(files)}")
+    if filter_input:
+        before = len(files)
+        files = [
+            f for f in files
+            if filter_input.lower() in f.get("filename", "").lower()
+            or filter_input.lower() in f.get("user", "").lower()
+        ]
+        print(f"[DEBUG] Filtered by input={filter_input}: {before} → {len(files)}")
+
+    # Sorting
+    reverse = (order == "desc")
+    print(f"[DEBUG] Sorting uploads by {sort}, reverse={reverse}")
+    if sort == "timestamp":
+        files.sort(key=lambda f: f.get("timestamp", 0), reverse=reverse)
+    else:
+        files.sort(key=lambda f: str(f.get(sort, "")).lower(), reverse=reverse)
+
+    # Pagination
+    total = len(files)
     start = (page - 1) * limit
     end = start + limit
     paginated = files[start:end]
-    print(f"[DEBUG] Pagination applied: total={len(files)}, returning {len(paginated)}")
+    print(f"[DEBUG] Pagination applied: total={total}, returning {len(paginated)} uploads")
 
     # Add presigned preview URLs
     for f in paginated:
@@ -107,10 +138,9 @@ def list_uploads():
     return jsonify({
         "page": page,
         "limit": limit,
-        "total": len(files),
+        "total": total,
         "results": paginated
     })
-
 
 # ---------- Download ----------
 @upload_bp.route("/<filename>", methods=["GET"])

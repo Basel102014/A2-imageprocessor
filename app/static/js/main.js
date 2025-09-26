@@ -217,8 +217,8 @@ function renderResultsPage(results) {
         <td class="filename-cell" title="${r.output}">${r.output}</td>
         <td>${new Date(r.timestamp * 1000).toLocaleString()}</td>
         <td>
-          <a href="/results/${r.output}" target="_blank">
-            <img src="/results/${r.output}" alt="Processed" class="thumbnail">
+          <a href="${r.preview_url}" target="_blank">
+            <img src="${r.preview_url}" alt="Processed" class="thumbnail">
           </a>
         </td>
         <td>
@@ -328,8 +328,8 @@ function renderUploadsPage(files, total) {
       <tr>
         <td class="filename-cell" title="${f.filename}">${f.filename}</td>
         <td>
-          <a href="/upload/${f.filename}" target="_blank">
-            <img src="/upload/${f.filename}" alt="Uploaded" class="thumbnail">
+          <a href="${f.preview_url}" target="_blank">
+            <img src="${f.preview_url}" alt="Uploaded" class="thumbnail">
           </a>
         </td>
         <td>${f.resolution}</td>

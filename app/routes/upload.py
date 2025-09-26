@@ -90,13 +90,19 @@ def list_uploads():
         files = [f for f in files if f.get("user") == username]
         print(f"[DEBUG] Filtered uploads for {username}: {before} → {len(files)}")
 
-    # Pagination/sorting (basic version)
+    # Pagination
     page = int(request.args.get("page", 1))
     limit = int(request.args.get("limit", 10))
     start = (page - 1) * limit
     end = start + limit
     paginated = files[start:end]
     print(f"[DEBUG] Pagination applied: total={len(files)}, returning {len(paginated)}")
+
+    # Add presigned preview URLs
+    for f in paginated:
+        if "filename" in f:
+            s3_key = f"uploads/{f['filename']}"
+            f["preview_url"] = s3.generate_presigned_url(s3_key)
 
     return jsonify({
         "page": page,

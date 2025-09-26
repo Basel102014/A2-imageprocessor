@@ -85,12 +85,19 @@ def get_metadata():
     paginated = metadata[start:end]
     print(f"[DEBUG] Pagination applied: total={total}, returning {len(paginated)} results")
 
+    # Add presigned preview URLs
+    for m in paginated:
+        if "output" in m:
+            s3_key = f"results/{m['output']}"
+            m["preview_url"] = s3.generate_presigned_url(s3_key)
+
     return jsonify({
         "page": page,
         "limit": limit,
         "total": total,
         "results": paginated
     })
+
 
 
 @results_bp.route("/clear", methods=["DELETE"])

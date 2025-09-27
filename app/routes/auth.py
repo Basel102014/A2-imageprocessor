@@ -2,12 +2,14 @@ from urllib.parse import urlencode
 from flask import Blueprint, redirect, render_template, url_for, session, current_app, request
 import os
 
+from app.services.param_store import get_param
+
 auth_bp = Blueprint("auth", __name__)
 
 @auth_bp.route("/login")
 def login():
     if os.environ.get("FLASK_ENV") == "production":
-        redirect_uri = "https://n11326158.cab432.com/auth/authorize"
+        redirect_uri = get_param("/n11326158/app/REDIRECT_URI_PROD")
     else:
         redirect_uri = f"{request.scheme}://{request.host}/auth/authorize"
 
@@ -65,12 +67,12 @@ def logout():
     # Hosted UI base
     authz = current_app.oauth.oidc.server_metadata.get("authorization_endpoint")
     hosted_base = authz.split("/oauth2/authorize")[0] if authz else \
-        "https://ap-southeast-2og65686wi.auth.ap-southeast-2.amazoncognito.com"
+        get_param("/n11326158/cognito/HOSTED_UI_URL")
 
     client_id = getattr(current_app.oauth.oidc, "client_id", None)
 
     if os.environ.get("FLASK_ENV") == "production":
-        post_logout = "https://n11326158.cab432.com/auth/"
+        post_logout = get_param("/n11326158/app/POST_LOGOUT_URI_PROD")
     else:
         post_logout = f"{request.scheme}://{request.host}/auth/"
 

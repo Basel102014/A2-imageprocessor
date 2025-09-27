@@ -2,9 +2,11 @@ import boto3
 import time
 import uuid
 
-REGION = "ap-southeast-2"
-UPLOADS_TABLE = "n11326158-Uploads"
-RESULTS_TABLE = "n11326158-Results"
+from app.services.param_store import get_param
+
+REGION = get_param("/n11326158/REGION")
+UPLOADS_TABLE = get_param("/n11326158/dynamodb/UPLOADS_TABLE")
+RESULTS_TABLE = get_param("/n11326158/dynamodb/RESULTS_TABLE")
 
 dynamodb = boto3.resource("dynamodb", region_name=REGION)
 uploads_table = dynamodb.Table(UPLOADS_TABLE)

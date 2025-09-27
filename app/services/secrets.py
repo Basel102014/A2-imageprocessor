@@ -1,9 +1,11 @@
 import boto3, json
 from botocore.exceptions import ClientError
 
+from app.services.param_store import get_param
+
 def get_secret():
-    secret_name = "n11326158-secret-key"
-    region_name = "ap-southeast-2"
+    secret_name = get_param("/n11326158/secrets/COGNITO_SECRET_NAME")
+    region_name = get_param("/n11326158/REGION")
 
     client = boto3.client("secretsmanager", region_name=region_name)
     try:

@@ -1,8 +1,9 @@
 import boto3
 import os
+from app.services.param_store import get_param
 
-REGION = "ap-southeast-2"
-BUCKET = "n11326158-assessment2"
+REGION = get_param("/n11326158/REGION")
+BUCKET = get_param("/n11326158/s3/APP_BUCKET")
 
 s3 = boto3.client("s3", region_name=REGION)
 

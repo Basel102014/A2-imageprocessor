@@ -1,6 +1,7 @@
 from flask import Flask, redirect, url_for
 from authlib.integrations.flask_client import OAuth
 import os
+from app.services.param_store import get_param
 from app.services.secrets import get_secret
 
 print("[DEBUG] Starting application…")
@@ -17,10 +18,11 @@ app.secret_key = os.urandom(24)
 
 
 # --- Cognito Config ---
-COGNITO_USER_POOL_ID = "ap-southeast-2_Og65686Wi"
-COGNITO_CLIENT_ID = "60ueg8ts3d58d4vdod86vc95rl"
+COGNITO_USER_POOL_ID = get_param("/n11326158/cognito/COGNITO_USER_POOL_ID")
+COGNITO_CLIENT_ID = get_param("/n11326158/cognito/COGNITO_CLIENT_ID")
 COGNITO_CLIENT_SECRET = get_secret()
-print("[DEBUG] Loaded Cognito secret:", repr(COGNITO_CLIENT_SECRET))
+
+COGNITO_DOMAIN_URL = get_param("/n11326158/cognito/DOMAIN_URL")
 
 # --- OAuth setup ---
 oauth = OAuth(app)
@@ -30,10 +32,7 @@ oauth.register(
     name="oidc",
     client_id=COGNITO_CLIENT_ID,
     client_secret=COGNITO_CLIENT_SECRET,
-    server_metadata_url=(
-        f"https://cognito-idp.ap-southeast-2.amazonaws.com/"
-        f"{COGNITO_USER_POOL_ID}/.well-known/openid-configuration"
-    ),
+    server_metadata_url = f"{COGNITO_DOMAIN_URL}/{COGNITO_USER_POOL_ID}/.well-known/openid-configuration",
     client_kwargs={"scope": "openid profile email"},
 )
 print("[DEBUG] Cognito OAuth provider registered")

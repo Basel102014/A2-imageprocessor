@@ -8,6 +8,12 @@ REPO="baileyr-11326158"
 IMAGE_NAME="image-processor"
 TAG="latest"
 
+echo "Checking AWS SSO session..."
+if ! aws sts get-caller-identity --profile $PROFILE >/dev/null 2>&1; then
+  echo "SSO session expired or missing. Logging in..."
+  aws sso login --profile $PROFILE
+fi
+
 echo "Updating domain..."
 ./scripts/route53-update.sh
 

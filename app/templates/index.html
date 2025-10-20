@@ -3,11 +3,18 @@
 {% block title %}Dashboard - Image Processor{% endblock %}
 
 {% block content %}
+<body data-role="{{ session['user'].get('role', 'user') }}">
 <div class="container">
-  <div class="top-bar">
-    <h1>Image Processor Dashboard</h1>
-    <button class="logout-btn" onclick="logout()">Logout</button>
+  <div class="container">
+    <div class="top-bar">
+      <h1>Image Processor Dashboard</h1>
+      <div class="user-info">
+        {{ session['user'].get('cognito:username', 'Unknown') }}
+      </div>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
   </div>
+
 
   <hr class="divider">
 
@@ -22,7 +29,8 @@
     </form>
   </div>
 
-  <!-- Stress test -->
+  <!-- Stress test (Admin only) -->
+  {% if session['user'].get('role') == 'admin' %}
   <div class="card" id="stress-card">
     <div class="card-header">
       <h2>Stress Test (Admin Only)</h2>
@@ -35,6 +43,7 @@
 
     <button onclick="stressTest()">Run Stress Test</button>
   </div>
+  {% endif %}
 
   <!-- Uploaded files -->
   <div class="card">
@@ -42,7 +51,9 @@
       <h2>Uploaded Files</h2>
       <div class="results-actions">
         <button id="settings-btn" onclick="openSettings()">⚙ Settings</button>
+        {% if session['user'].get('role') == 'admin' %}
         <button id="clear-uploads-btn" class="danger-btn" onclick="clearUploads()">🗑 Delete All Uploads</button>
+        {% endif %}
       </div>
     </div>
 
@@ -60,7 +71,9 @@
     <div class="results-header">
       <h2>Results</h2>
       <div class="results-actions">
+        {% if session['user'].get('role') == 'admin' %}
         <button id="clear-data-btn" class="danger-btn" onclick="clearData()">🗑 Delete All Data</button>
+        {% endif %}
       </div>
     </div>
 
@@ -100,4 +113,5 @@
 
 <!-- External JavaScript -->
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
 {% endblock %}

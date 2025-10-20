@@ -5,19 +5,10 @@ function showSpinner() {
 function hideSpinner() {
   document.getElementById("spinner").style.display = "none";
 }
-function getToken() {
-  return localStorage.getItem("token");
-}
-function parseJwt(token) {
-  try {
-    return JSON.parse(atob(token.split('.')[1]));
-  } catch {
-    return null;
-  }
-}
+
+// Instead of JWT parsing, rely on server-provided role in <body data-role="...">
 function isAdmin() {
-  const payload = parseJwt(getToken());
-  return payload?.role === "admin";
+  return document.body.dataset.role === "admin";
 }
 
 // Toast helper
@@ -29,10 +20,7 @@ function showToast(message, type = "info") {
 
   container.appendChild(toast);
 
-  // Trigger animation
   setTimeout(() => toast.classList.add("show"), 50);
-
-  // Auto remove after 3s
   setTimeout(() => {
     toast.classList.remove("show");
     setTimeout(() => toast.remove(), 300);
@@ -49,11 +37,7 @@ async function uploadFile(event) {
   formData.append("file", fileInput.files[0]);
 
   try {
-    const res = await fetch("/upload/", {
-      method: "POST",
-      headers: { "Authorization": "Bearer " + getToken() },
-      body: formData
-    });
+    const res = await fetch("/upload/", { method: "POST", body: formData });
     const data = await res.json();
 
     if (res.ok) {
@@ -75,9 +59,7 @@ async function populateFileDropdown(page = 1, limit = 50, sort = "filename", ord
     let url = `/upload/list?page=${page}&limit=${limit}&sort=${sort}&order=${order}`;
     if (filter) url += `&q=${encodeURIComponent(filter)}`;
 
-    const res = await fetch(url, {
-      headers: { "Authorization": "Bearer " + getToken() }
-    });
+    const res = await fetch(url);
     const data = await res.json();
 
     if (stressSelect) {
@@ -104,10 +86,7 @@ async function deleteUpload(filename) {
   if (!confirm(`Delete upload "${filename}"?`)) return;
 
   showSpinner();
-  const res = await fetch(`/upload/${filename}`, {
-    method: "DELETE",
-    headers: { "Authorization": "Bearer " + getToken() }
-  });
+  const res = await fetch(`/upload/${filename}`, { method: "DELETE" });
   const data = await res.json();
   hideSpinner();
 
@@ -126,11 +105,9 @@ let processSettings = {};
 function openSettings() {
   document.getElementById("settings-modal").style.display = "flex";
 }
-
 function closeSettings() {
   document.getElementById("settings-modal").style.display = "none";
 }
-
 function saveSettings() {
   processSettings = {
     rotate: parseFloat(document.getElementById("rotate").value) || undefined,
@@ -151,10 +128,7 @@ async function processUpload(filename) {
   showSpinner();
   const res = await fetch("/process/", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + getToken()
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ filename, operations: processSettings })
   });
   const data = await res.json();
@@ -171,23 +145,20 @@ async function processUpload(filename) {
 async function stressTest() {
   const filename = document.getElementById("stress-file").value;
   const duration = parseInt(document.getElementById("duration").value, 10);
-  if (!filename) return showToast("Please select a file to run the stress test on.", "error");
+  if (!filename) return showToast("Please select a file.", "error");
 
   showSpinner();
   const res = await fetch("/process/stress", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + getToken()
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ filename, duration })
   });
   const data = await res.json();
   hideSpinner();
 
   if (res.ok) {
-    showToast(`Stress Test: ${data.iterations} iterations on ${filename}`, "info");
-    await viewResults(currentPage, sortColumn, sortDirection, currentFilter);
+    showToast(`Stress Test completed on ${filename}`, "info");
+    await viewResults();
   } else {
     showToast("Error: " + (data.error || "Stress test failed"), "error");
   }
@@ -206,9 +177,7 @@ async function viewResults(page = 1, sort = sortColumn, order = sortDirection, f
   let url = `/results/metadata?page=${page}&limit=${resultsPerPage}&sort=${sort}&order=${order}`;
   if (filter) url += `&input=${encodeURIComponent(filter)}`;
 
-  const res = await fetch(url, {
-    headers: { "Authorization": "Bearer " + getToken() }
-  });
+  const res = await fetch(url);
   const data = await res.json();
   hideSpinner();
 
@@ -246,10 +215,10 @@ function renderResultsPage(results) {
         <td>${r.user}</td>
         <td class="filename-cell" title="${r.input}">${r.input}</td>
         <td class="filename-cell" title="${r.output}">${r.output}</td>
-        <td>${new Date(r.timestamp).toLocaleString()}</td>
+        <td>${new Date(r.timestamp * 1000).toLocaleString()}</td>
         <td>
-          <a href="/results/${r.output}" target="_blank">
-            <img src="/results/${r.output}" alt="Processed" class="thumbnail">
+          <a href="${r.preview_url}" target="_blank">
+            <img src="${r.preview_url}" alt="Processed" class="thumbnail">
           </a>
         </td>
         <td>
@@ -269,10 +238,7 @@ async function deleteResult(filename) {
   if (!confirm(`Delete result "${filename}"?`)) return;
 
   showSpinner();
-  const res = await fetch(`/results/${filename}`, {
-    method: "DELETE",
-    headers: { "Authorization": "Bearer " + getToken() }
-  });
+  const res = await fetch(`/results/${filename}`, { method: "DELETE" });
   const data = await res.json();
   hideSpinner();
 
@@ -293,32 +259,25 @@ function changeSort(column) {
   }
   viewResults(1, sortColumn, sortDirection);
 }
-
 function getSortIndicator(column) {
   if (sortColumn === column) {
     return sortDirection === "asc" ? " ▲" : " ▼";
   }
   return " ⇅";
 }
-
 function applyFilter() {
   currentFilter = document.getElementById("filter-input").value.trim();
   viewResults(1, sortColumn, sortDirection, currentFilter);
 }
-
 async function clearData() {
-  if (!confirm("Are you sure you want to delete all results? This action cannot be undone.")) return;
+  if (!confirm("Are you sure you want to delete all results?")) return;
 
-  const res = await fetch("/results/clear", {
-    method: "DELETE",
-    headers: { "Authorization": "Bearer " + getToken() }
-  });
-
+  const res = await fetch("/results/clear", { method: "DELETE" });
   if (res.ok) {
-    showToast("All results deleted successfully.", "success");
+    showToast("All results deleted.", "success");
     viewResults();
   } else {
-    showToast("Failed to delete results: " + (res.statusText || "Unknown error"), "error");
+    showToast("Failed to delete results.", "error");
   }
 }
 
@@ -334,9 +293,7 @@ async function viewUploads(page = 1, sort = uploadsSortColumn, order = uploadsSo
   let url = `/upload/list?page=${page}&limit=${uploadsPerPage}&sort=${sort}&order=${order}`;
   if (q) url += `&q=${encodeURIComponent(q)}`;
 
-  const res = await fetch(url, {
-    headers: { "Authorization": "Bearer " + getToken() }
-  });
+  const res = await fetch(url);
   const data = await res.json();
   hideSpinner();
 
@@ -371,8 +328,8 @@ function renderUploadsPage(files, total) {
       <tr>
         <td class="filename-cell" title="${f.filename}">${f.filename}</td>
         <td>
-          <a href="/upload/${f.filename}" target="_blank">
-            <img src="/upload/${f.filename}" alt="Uploaded" class="thumbnail">
+          <a href="${f.preview_url}" target="_blank">
+            <img src="${f.preview_url}" alt="Uploaded" class="thumbnail">
           </a>
         </td>
         <td>${f.resolution}</td>
@@ -400,34 +357,26 @@ function changeUploadsSort(column) {
   }
   viewUploads(1, uploadsSortColumn, uploadsSortDirection, uploadsFilter);
 }
-
 function getUploadsSortIndicator(column) {
   if (uploadsSortColumn === column) {
     return uploadsSortDirection === "asc" ? " ▲" : " ▼";
   }
   return " ⇅";
 }
-
 function applyUploadsFilter() {
   uploadsFilter = document.getElementById("uploads-filter-input").value.trim();
   viewUploads(1, uploadsSortColumn, uploadsSortDirection, uploadsFilter);
 }
-
 async function clearUploads() {
-  if (!confirm("Are you sure you want to delete ALL uploads? This cannot be undone.")) return;
+  if (!confirm("Delete ALL uploads?")) return;
 
-  const res = await fetch("/upload/clear", {
-    method: "DELETE",
-    headers: { "Authorization": "Bearer " + getToken() }
-  });
-
+  const res = await fetch("/upload/clear", { method: "DELETE" });
   if (res.ok) {
-    showToast("All uploads deleted successfully.", "success");
+    showToast("All uploads deleted.", "success");
     viewUploads();
     populateFileDropdown();
   } else {
-    const data = await res.json();
-    showToast("Error: " + (data.error || "Failed to delete uploads"), "error");
+    showToast("Failed to delete uploads.", "error");
   }
 }
 
@@ -459,38 +408,12 @@ function renderPagination(container, totalPages, callback) {
 
 // ---------------- Auth ----------------
 function logout() {
-  localStorage.removeItem("token");
-  window.location.href = "/login";
-}
-
-async function login(event) {
-  event.preventDefault();
-  const username = document.getElementById("username").value;
-  const password = document.getElementById("password").value;
-
-  const res = await fetch("/auth/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password })
-  });
-
-  const data = await res.json();
-  if (data.token) {
-    localStorage.setItem("token", data.token);
-    window.location.href = "/dashboard";
-  } else {
-    showToast("Login failed: " + (data.error || "Unknown error"), "error");
-  }
+  window.location.href = "/auth/logout";
 }
 
 // ---------------- Init ----------------
 document.addEventListener("DOMContentLoaded", () => {
   const onDashboard = document.getElementById("results") !== null;
-  if (onDashboard && !getToken()) {
-    window.location.href = "/login";
-    return;
-  }
-
   if (onDashboard) {
     populateFileDropdown();
 

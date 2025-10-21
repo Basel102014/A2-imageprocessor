@@ -5,7 +5,7 @@ from app.utils.auth_helper import login_required
 process_forward_bp = Blueprint("process_forward", __name__)
 
 # Worker EC2 private DNS (internal network)
-WORKER_URL = "http://ip-172-31-87-146.ap-southeast-2.compute.internal:5000"
+WORKER_URL = "http://internal-n11326158-alb-1562283677.ap-southeast-2.elb.amazonaws.com"
 
 def check_worker_health():
     """Ping the worker's /health endpoint before sending a job."""

@@ -21,7 +21,6 @@ def unique_filename(prefix, original_name):
 
 # ---------------- Normal Processing ----------------
 @process_bp.route("/", methods=["POST"])
-@login_required
 def process_image():
     print("[DEBUG] /process route hit (POST)")
     data = request.json
@@ -108,7 +107,6 @@ def worker_task(local_in, duration, local_out):
 
 
 @process_bp.route("/stress", methods=["POST"])
-@login_required
 def stress_test():
     print("[DEBUG] /stress route hit (POST)")
     data = request.json

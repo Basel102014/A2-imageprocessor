@@ -15,17 +15,17 @@ RUN apt-get update && apt-get install -y \
     zlib1g-dev \
  && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
+# Copy requirements first for caching
 COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the project
+# Copy the application source
 COPY . .
 
-# Expose the port Flask runs on
-EXPOSE 8080
+# Expose Flask port
+EXPOSE 5000
 
-# Run the app with gunicorn
-CMD ["gunicorn", "-b", "0.0.0.0:8080", "--timeout", "500", "run:app"]
+# Run the worker app
+CMD ["gunicorn", "-b", "0.0.0.0:5000", "--timeout", "500", "worker:app"]

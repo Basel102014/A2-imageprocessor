@@ -28,4 +28,4 @@ COPY . .
 EXPOSE 8080
 
 # Run the API app
-CMD ["gunicorn", "-b", "0.0.0.0:8080", "--timeout", "500", "api:app"]
+CMD ["gunicorn", "-b", "0.0.0.0:8080", "--timeout", "800", "api:app"]

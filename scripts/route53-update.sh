@@ -4,31 +4,32 @@ set -e
 # ==== CONFIG ====
 PROFILE="CAB432-STUDENT-901444280953"
 REGION="ap-southeast-2"
-INSTANCE_ID="i-00ef57baf827d039c"
 HOSTED_ZONE_ID="Z02680423BHWEVRU2JZDQ"
 SUBDOMAIN="n11326158.cab432.com"
+ALB_NAME="n11326158-imgproc-main"
 
-# ==== SCRIPT ====
-echo "Fetching current EC2 Public DNS..."
-EC2_DNS=$(aws ec2 describe-instances \
-  --instance-ids $INSTANCE_ID \
-  --query "Reservations[0].Instances[0].PublicDnsName" \
+# ==== FETCH ALB DNS ====
+echo "[INFO] Fetching DNS name for ALB ($ALB_NAME)..."
+ALB_DNS=$(aws elbv2 describe-load-balancers \
+  --names "$ALB_NAME" \
+  --query "LoadBalancers[0].DNSName" \
   --output text \
-  --region $REGION \
-  --profile $PROFILE)
+  --region "$REGION" \
+  --profile "$PROFILE")
 
-if [ -z "$EC2_DNS" ]; then
-  echo "Could not fetch EC2 DNS. Is the instance running?"
+if [ -z "$ALB_DNS" ] || [ "$ALB_DNS" == "None" ]; then
+  echo "[ERROR] Could not fetch ALB DNS name. Check ALB name or permissions."
   exit 1
 fi
 
-echo "Current EC2 DNS: $EC2_DNS"
+echo "[SUCCESS] Found ALB DNS: $ALB_DNS"
 
+# ==== CREATE ROUTE53 UPDATE FILE ====
 TMPFILE=$(mktemp)
 
-cat > $TMPFILE <<EOF
+cat > "$TMPFILE" <<EOF
 {
-  "Comment": "Update record to new EC2 public DNS",
+  "Comment": "Update record to point to ALB DNS",
   "Changes": [
     {
       "Action": "UPSERT",
@@ -38,7 +39,7 @@ cat > $TMPFILE <<EOF
         "TTL": 300,
         "ResourceRecords": [
           {
-            "Value": "$EC2_DNS"
+            "Value": "$ALB_DNS"
           }
         ]
       }
@@ -47,12 +48,13 @@ cat > $TMPFILE <<EOF
 }
 EOF
 
-echo "Updating Route53 record for $SUBDOMAIN..."
+# ==== UPDATE ROUTE53 ====
+echo "[INFO] Updating Route53 record for $SUBDOMAIN..."
 aws route53 change-resource-record-sets \
-  --hosted-zone-id $HOSTED_ZONE_ID \
-  --change-batch file://$TMPFILE \
-  --region $REGION \
-  --profile $PROFILE
+  --hosted-zone-id "$HOSTED_ZONE_ID" \
+  --change-batch "file://$TMPFILE" \
+  --region "$REGION" \
+  --profile "$PROFILE"
 
-rm $TMPFILE
-echo "Route53 updated successfully!"
+rm "$TMPFILE"
+echo "[SUCCESS] Route53 updated successfully to ALB ($ALB_DNS)"

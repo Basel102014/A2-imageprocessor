@@ -1,36 +1,40 @@
+import os
+import base64
+import json
 from urllib.parse import urlencode
 from flask import Blueprint, redirect, render_template, url_for, session, current_app, request
-import os
-
 from app.services.param_store import get_param
 
 auth_bp = Blueprint("auth", __name__)
 
+
 @auth_bp.route("/login")
 def login():
+    """Initiate login via Cognito Hosted UI."""
     if os.environ.get("FLASK_ENV") == "production":
         redirect_uri = get_param("/n11326158/app/REDIRECT_URI_PROD")
     else:
         redirect_uri = f"{request.scheme}://{request.host}/auth/authorize"
 
     print(f"[DEBUG] Using redirect URI: {redirect_uri}")
-    return current_app.oauth.oidc.authorize_redirect(
+
+    response = current_app.oauth.oidc.authorize_redirect(
         redirect_uri,
         prompt="login"
     )
+    return response, 302
+
 
 @auth_bp.route("/authorize")
 def authorize():
-    """Handle callback from Cognito"""
+    """Handle callback from Cognito."""
     token = current_app.oauth.oidc.authorize_access_token()
     user = token.get("userinfo") or {}
 
-    # Also decode the ID token to extract Cognito groups
-    import base64, json
     def _decode_jwt(jwt):
         try:
             payload = jwt.split(".")[1]
-            payload += "=" * (-len(payload) % 4)  # fix padding
+            payload += "=" * (-len(payload) % 4)
             return json.loads(base64.urlsafe_b64decode(payload.encode()).decode())
         except Exception:
             return {}
@@ -58,16 +62,20 @@ def authorize():
     print("[DEBUG] Role:", role)
     print("[DEBUG] Session user:", session["user"])
 
-    return redirect(url_for("client.dashboard"))
+    return redirect(url_for("client.dashboard")), 302
+
 
 @auth_bp.route("/logout")
 def logout():
+    """Log out user and redirect to Cognito Hosted UI logout."""
     session.clear()
 
-    # Hosted UI base
     authz = current_app.oauth.oidc.server_metadata.get("authorization_endpoint")
-    hosted_base = authz.split("/oauth2/authorize")[0] if authz else \
-        get_param("/n11326158/cognito/HOSTED_UI_URL")
+    hosted_base = (
+        authz.split("/oauth2/authorize")[0]
+        if authz
+        else get_param("/n11326158/cognito/HOSTED_UI_URL")
+    )
 
     client_id = getattr(current_app.oauth.oidc, "client_id", None)
 
@@ -80,12 +88,13 @@ def logout():
     logout_url = f"{hosted_base}/logout?{urlencode(params)}"
 
     print("[DEBUG] Cognito logout URL:", logout_url)
-    return redirect(logout_url)
+    return redirect(logout_url), 302
+
 
 @auth_bp.route("/")
 def index():
-    """Show a simple login page"""
-    return """
+    """Display a simple login page."""
+    html = """
     <html>
       <head><title>Login</title></head>
       <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
@@ -96,3 +105,4 @@ def index():
       </body>
     </html>
     """
+    return html, 200

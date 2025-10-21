@@ -54,7 +54,7 @@ app.register_blueprint(process_forward_bp, url_prefix="/process")
 
 print("[DEBUG] Registered blueprints: auth, client, upload, results, process_forward")
 
-# --- Health check (optional but useful) ---
+# --- Health check ---
 @app.route("/health")
 def health():
     return {"status": "API service running"}, 200

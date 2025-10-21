@@ -12,7 +12,7 @@ def list_results():
     print("[DEBUG] /results/ (GET) hit → listing results from S3")
     files = s3.list_files_with_prefix("results/")
     print(f"[DEBUG] Files found in S3 results/: {files}")
-    return jsonify({"results": files})
+    return jsonify({"results": files}), 200
 
 
 @results_bp.route("/<filename>", methods=["GET"])
@@ -21,17 +21,19 @@ def get_result(filename):
     print(f"[DEBUG] /results/{filename} (GET) hit → presigned URL")
     s3_key = f"results/{filename}"
     url = s3.generate_presigned_url(s3_key)
+
     if not url:
         print(f"[DEBUG] File not found in S3: {s3_key}")
         return jsonify({"error": "File not found"}), 404
+
     print(f"[DEBUG] Generated presigned URL: {url}")
-    return jsonify({"download_url": url})
+    return jsonify({"download_url": url}), 200
 
 
 @results_bp.route("/metadata", methods=["GET"])
 @login_required
 def get_metadata():
-    """Get paginated, sortable, and filterable result metadata."""
+    """Return paginated, sortable, and filterable result metadata."""
     print("[DEBUG] /results/metadata (GET) hit")
     metadata = ddb.load_results()
     print(f"[DEBUG] Loaded metadata count: {len(metadata)}")
@@ -39,28 +41,27 @@ def get_metadata():
     user = session.get("user", {})
     role = "admin" if user.get("cognito:username") == "admin1" else "user"
 
-    # Role-based filtering
     if role != "admin":
         before = len(metadata)
         username = user.get("cognito:username")
         metadata = [m for m in metadata if m.get("user") == username]
         print(f"[DEBUG] User '{username}' filtered metadata count: {before} → {len(metadata)}")
 
-    # Query params
     page = int(request.args.get("page", 1))
     limit = int(request.args.get("limit", 5))
     sort = request.args.get("sort", "timestamp")
     order = request.args.get("order", "desc")
     filter_user = request.args.get("user")
     filter_input = request.args.get("input")
-    print(f"[DEBUG] Query params → page={page}, limit={limit}, sort={sort}, order={order}, "
-          f"filter_user={filter_user}, filter_input={filter_input}")
 
-    # Filtering
+    print(f"[DEBUG] Query params → page={page}, limit={limit}, sort={sort}, "
+          f"order={order}, filter_user={filter_user}, filter_input={filter_input}")
+
     if filter_user and role == "admin":
         before = len(metadata)
         metadata = [m for m in metadata if m.get("user", "").lower() == filter_user.lower()]
         print(f"[DEBUG] Filtered by user={filter_user}: {before} → {len(metadata)}")
+
     if filter_input:
         before = len(metadata)
         metadata = [
@@ -70,7 +71,6 @@ def get_metadata():
         ]
         print(f"[DEBUG] Filtered by input={filter_input}: {before} → {len(metadata)}")
 
-    # Sorting
     reverse = (order == "desc")
     print(f"[DEBUG] Sorting metadata by {sort}, reverse={reverse}")
     if sort == "timestamp":
@@ -78,14 +78,12 @@ def get_metadata():
     else:
         metadata.sort(key=lambda r: str(r.get(sort, "")).lower(), reverse=reverse)
 
-    # Pagination
     total = len(metadata)
     start = (page - 1) * limit
     end = start + limit
     paginated = metadata[start:end]
     print(f"[DEBUG] Pagination applied: total={total}, returning {len(paginated)} results")
 
-    # Add presigned preview URLs
     for m in paginated:
         if "output" in m:
             s3_key = f"results/{m['output']}"
@@ -96,8 +94,7 @@ def get_metadata():
         "limit": limit,
         "total": total,
         "results": paginated
-    })
-
+    }), 200
 
 
 @results_bp.route("/clear", methods=["DELETE"])
@@ -119,17 +116,16 @@ def clear_results():
 @results_bp.route("/<filename>", methods=["DELETE"])
 @login_required
 def delete_result(filename):
-    """Delete a specific result file and prune metadata."""
+    """Delete a specific result file and its metadata."""
     print(f"[DEBUG] /results/{filename} (DELETE) hit")
-
     try:
         s3_key = f"results/{filename}"
         s3.delete_file_from_s3(s3_key)
         print(f"[DEBUG] Deleted file from S3: {s3_key}")
 
-        # Delete metadata entry
         metadata = ddb.load_results()
         match = next((m for m in metadata if m.get("output") == filename), None)
+
         if match:
             ddb.delete_result_metadata(match["id"])
             print(f"[DEBUG] Deleted metadata from DynamoDB: {match['id']}")

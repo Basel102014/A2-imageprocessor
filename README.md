@@ -1,70 +1,80 @@
-### A2-imageprocessor
+# A2 Image Processor
 
-## Push Image to Amazon ECR (from local machine)
+This project is a containerised image processing service developed as part of a university cloud computing assignment.  
+The application was designed to run as a containerised workload deployed to AWS infrastructure using Podman and Amazon ECR.
 
-### Login to AWS SSO
-```bash
-aws sso login --profile CAB432-STUDENT-901444280953
-```
-Opens browser to authenticate your student account. Must be run once per session.
+The original AWS environment was provided through a student account and is no longer accessible, but the source code and container configuration remain as a demonstration of system design, containerisation, and deployment workflows.
 
-### Authenticate Podman with ECR
-```bash
-aws ecr get-login-password --region ap-southeast-2 | sudo podman login --username AWS --password-stdin 901444280953.dkr.ecr.ap-southeast-2.amazonaws.com
-```
+---
 
-### Build your image
-```bash
-podman build -t image-processor:latest .
-```
+## Project Overview
 
-### Tag the image for ECR
-```bash
-podman tag image-processor:latest \
-  901444280953.dkr.ecr.ap-southeast-2.amazonaws.com/baileyr-11326158:latest
-```
+The Image Processor is a backend service that processes image inputs inside a containerised environment.  
+It was designed to be deployed as part of a cloud-based system and run consistently across local and remote environments using containers.
 
-### Push to ECR
-```bash
-podman push \
-  901444280953.dkr.ecr.ap-southeast-2.amazonaws.com/baileyr-11326158:latest
-```
+Key goals of the project included:
+- Building a reproducible containerised application
+- Pushing and pulling container images via Amazon ECR
+- Running services using Podman and Podman Compose
+- Demonstrating cloud deployment and infrastructure workflows
 
-## Pull Image & Run with Podman Compose (on EC2)
+---
 
-### Authenticate Podman with ECR
-```bash
-aws ecr get-login-password --region ap-southeast-2 | sudo podman login --username AWS --password-stdin 901444280953.dkr.ecr.ap-southeast-2.amazonaws.com
-```
+## Technologies Used
 
-### Pull your image
-```bash
-sudo podman pull 901444280953.dkr.ecr.ap-southeast-2.amazonaws.com/baileyr-11326158:latest
-```
+- **Podman** – Container runtime and image management  
+- **Podman Compose** – Multi-container orchestration  
+- **AWS ECR (Elastic Container Registry)** – Container image hosting  
+- **AWS SSO** – Authentication for cloud resources  
+- **Linux** – Target deployment environment  
 
-### Run with Podman Compose
-```bash
-sudo podman-compose up -d
-```
+---
 
-## Common Commands
+## Architecture Summary
 
-```bash
-sudo podman ps -a
-```
-Check all containers (running and stopped)
+- The application is packaged as a container image
+- Images were built locally and pushed to Amazon ECR
+- The service was deployed and run on an EC2 instance using Podman Compose
+- Infrastructure access was handled via AWS SSO (student account)
 
-```bash
-sudo podman stop <container_id_or_name>
-```
-Stops container with id
+---
 
-```bash
-sudo podman rm <container_id_or_name>
-```
-Deletes container with id
+## Current Status
 
-```bash
-sudo podman rmi -f $(sudo podman images -aq)
-```
-Deletes all images
+⚠️ **AWS deployment is no longer active**
+
+The AWS account used for this project was a university-provided student environment and has since been decommissioned.  
+As a result:
+- The original ECR repository is no longer accessible
+- Deployment commands referencing AWS credentials are retained for documentation purposes only
+
+The repository is preserved to showcase:
+- Containerisation workflow
+- Cloud deployment practices
+- Infrastructure-as-code style thinking
+
+---
+
+## Local Development Notes
+
+The container build configuration remains intact and can be adapted for:
+- Local-only container execution
+- Deployment to an alternative container registry
+- Migration to Docker or another container runtime
+
+---
+
+## What This Project Demonstrates
+
+- Practical containerisation skills
+- Understanding of cloud-native deployment workflows
+- Ability to work with managed cloud services
+- Experience with Linux-based deployment environments
+- Clear separation between application logic and infrastructure
+
+---
+
+## Disclaimer
+
+This project was developed for academic purposes.  
+Infrastructure credentials and cloud resources referenced in historical commands are no longer valid.
